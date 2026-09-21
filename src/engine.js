@@ -10,6 +10,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- listening ---------- */
+const SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
 const SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave1" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave2" d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 
 // Small round button that speaks one English phrase.
@@ -543,7 +544,10 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     </nav>
     <main class="wrap">
       <header class="hero">
-        <a class="back" href="#/">← Все уроки</a>
+        <div class="hero-top">
+          <a class="back" href="#/">← Все уроки</a>
+          ${opts.share ? `<button type="button" class="share-btn" data-share>${SHARE_ICON}<span>Поделиться</span></button>` : ""}
+        </div>
         <h1>${esc(lesson.title)}</h1>
         ${lesson.subtitle ? `<p class="lead">${esc(lesson.subtitle)}</p>` : ""}
         <p class="tap-tip">Нажмите на английское слово в объяснении — покажем перевод.</p>
@@ -571,6 +575,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         <p class="muted" data-score-text></p>
       </section>
     </main>`;
+  root.querySelector("[data-share]")?.addEventListener("click", () => opts.share());
 
   // Portions call these back when an answer is saved, to know when a portion is finished.
   const answerHooks = [];

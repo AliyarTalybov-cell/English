@@ -238,6 +238,23 @@ const AUTH_TEXT = {
     note: "Письмо с подтверждением не придёт: аккаунт работает сразу после регистрации." },
 };
 
+// «Поделиться» in a lesson: the phone's own share sheet where there is one, otherwise the link goes to the clipboard.
+async function shareLesson(slug, title) {
+  const url = `${location.origin}${location.pathname}#/lesson/${encodeURIComponent(slug)}`;
+  if (navigator.share && matchMedia("(hover: none)").matches) {
+    try { await navigator.share({ title: `${title} · English`, text: `Урок «${title}»`, url }); } catch {}
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); }
+  catch {
+    const t = document.createElement("textarea");
+    t.value = url; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } finally { t.remove(); }
+  }
+  toast("Ссылка на урок скопирована");
+}
+
 function renderAuth(startMode = "login", message = "") {
   removeFloating();
   let mode = startMode;
@@ -247,6 +264,7 @@ function renderAuth(startMode = "login", message = "") {
     <main class="wrap login">
       <form class="login-card auth-card" novalidate>
         <p class="login-brand">English<span>.</span></p>
+        ${location.hash.startsWith("#/lesson/") ? `<p class="auth-shared">Войдите или зарегистрируйтесь — после входа откроется урок, которым с вами поделились.</p>` : ""}
         <div class="tabs" role="tablist" data-active="${mode}">
           <button type="button" role="tab" aria-selected="${mode === "login"}" data-mode="login">Вход</button>
           <button type="button" role="tab" aria-selected="${mode === "register"}" data-mode="register">Регистрация</button>
@@ -610,6 +628,7 @@ async function renderLesson(slug, target) {
       reset: sectionId => guard(api.resetSection(slug, sectionId), true),
     }, {
       revealFrom: target || null,
+      share: () => shareLesson(slug, lesson.title),
       onPortionDone: (sectionId, allRight) => api.scheduleReview(slug, sectionId, allRight).catch(() => {}),
     });
     if (target) requestAnimationFrame(() => {
