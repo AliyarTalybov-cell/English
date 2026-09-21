@@ -1094,7 +1094,11 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .write-inp.good{border-color:var(--good);background:var(--good-soft);color:var(--good)}
 .write-inp.bad{border-color:var(--bad);background:var(--bad-soft);color:var(--bad);text-decoration:line-through;animation:nudge .3s ease}
 .study-choice.single{grid-template-columns:1fr}
-.write-step .card-fb b{color:var(--ink);font-size:16px}
+.write-inp.reveal{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.write-answer{display:grid;gap:2px;justify-items:center;margin-top:-4px;animation:dropIn var(--t2) var(--ease-out)}
+.write-answer span{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.write-answer b{font-family:var(--display);font-weight:500;font-size:clamp(24px,7vw,30px);color:var(--accent);line-height:1.15}
+@media (prefers-reduced-motion: reduce){.write-answer{animation:none}}
 @media (hover:hover) and (pointer:fine){.study-hint{display:none}}
 
 /* quiz */

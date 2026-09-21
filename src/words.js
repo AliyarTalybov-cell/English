@@ -555,13 +555,15 @@ export async function startWordTraining() {
       i++; busy = false;
       if (i < deck.length) drawWrite(true); else finish();
     };
-    const answer = async ok => {
+    const answer = async (ok, gaveUp = false) => {
       if (done) return;
       done = true; busy = true;
       record(c.word, ok);
       if (ok) right++; else mistakes.push(c);
       input.readOnly = true;
-      input.classList.add(ok ? "good" : "bad");
+      // «Не помню» shows the word right in the field; a wrong spelling stays there crossed out.
+      if (gaveUp) { input.value = c.word; input.classList.add("reveal"); }
+      else input.classList.add(ok ? "good" : "bad");
       if (ok) {
         fb.textContent = "Верно";
         speakEnglish(c.word);
@@ -570,7 +572,8 @@ export async function startWordTraining() {
         return;
       }
       // A mistake stays on screen until «Дальше»: the right spelling is worth a look.
-      fb.innerHTML = `Правильно: <b lang="en">${esc(c.word)}</b>`;
+      if (!gaveUp) input.insertAdjacentHTML("afterend", `<p class="write-answer"><span>Правильно</span><b lang="en">${esc(c.word)}</b></p>`);
+      input.blur(); // close the phone keyboard so the answer is not hidden under it
       speakEnglish(c.word);
       const actions = form.querySelector(".study-choice");
       actions.innerHTML = `<button type="submit" class="btn ghost" data-next>Дальше</button>`;
@@ -583,7 +586,7 @@ export async function startWordTraining() {
       if (!norm(input.value)) { input.focus(); return; }
       answer(norm(input.value) === norm(c.word));
     });
-    form.querySelector("[data-giveup]").addEventListener("click", () => answer(false));
+    form.querySelector("[data-giveup]").addEventListener("click", () => answer(false, true));
   };
 
   const wordLine = list => list.map(w => `<li><b lang="en">${esc(w.word)}</b> <span>${esc(w.ru)}</span></li>`).join("");
