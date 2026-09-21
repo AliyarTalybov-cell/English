@@ -727,7 +727,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
             <a class="btn quiet" href="#/">Закончить занятие</a>
           </div>`;
         // A couple of sentences to write out from memory, right after the score.
-        recallPool.slice(-1).forEach(sentence => askToWrite(result, sentence));
+        recallPool.slice(-1).forEach(r => askToWrite(result, r.sentence, r.cue));
         recallPool = [];
         result.hidden = false;
         // The topic goes into the repetition queue; a clean portion pushes the next date further away.
@@ -801,12 +801,13 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     return el;
   }
 
-  // «Закрепим»: at the end of a portion, write out a couple of the sentences you assembled from buttons.
-  function askToWrite(host, sentence) {
+  // «Закрепим»: at the end of a portion, write out in full a sentence whose gap you just filled; the gapped task is shown as the cue.
+  function askToWrite(host, sentence, cue) {
     const box = document.createElement("div");
     box.className = "recall";
     box.innerHTML = `
-      <p class="recall-head">Закрепим: напишите это предложение целиком</p>
+      <p class="recall-head">Закрепим: напишите предложение целиком</p>
+      <p class="recall-cue">${cue}</p>
       <div class="row">
         <input class="inp" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="Напишите по-английски" aria-label="Напишите предложение целиком">
         <button class="btn" type="button" data-recall-check>Проверить</button>
@@ -899,8 +900,8 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         `<span class="head">${head}</span>${showAns ? `<span class="ans">${esc(answerText(it))}</span>` : ""}<span>${esc(it.ex || "")}</span>`, !silent);
       const spoken = spokenAnswer(it);
       if (spoken && canSpeak()) fb.querySelector(".head").append(sayButton(spoken, "Послушать ответ"));
-      if (!review && !silent && status === "ok" && it.t === "choice" && spoken && spoken.trim().split(/\s+/).length >= 3) {
-        recallPool.push(spoken); // asked at the end of the portion, not in the middle of it
+      if (!review && !silent && status === "ok" && it.t === "choice" && it.q.includes("___") && spoken && spoken.trim().split(/\s+/).length >= 3) {
+        recallPool.push({ sentence: spoken, cue: qHtml(it) }); // asked at the end of the portion, not in the middle of it
       }
     };
     const wrong = msg => {
