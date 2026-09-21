@@ -833,6 +833,12 @@ button.who{position:relative}
 .ptabs::before{width:calc((100% - 16px) / 3)}
 .ptabs[data-active="personal"]::before{transform:translateX(calc(100% + 4px))}
 .ptabs[data-active="security"]::before{transform:translateX(calc(200% + 8px))}
+.stabs{grid-template-columns:1fr 1fr;max-width:340px;margin-top:24px}
+.stabs::before{width:calc(50% - 6px)}
+.stabs[data-active="words"]::before{transform:translateX(calc(100% + 4px))}
+.stabs button small{font-family:var(--mono);font-size:11px;opacity:.7;margin-left:2px}
+.sw-block .words-tools{margin-top:4px}
+.sw-block .seg{justify-self:start}
 .ptabs button{padding:4px 6px;line-height:1.2}
 @media (max-width:420px){.ptabs button{font-size:13px;white-space:nowrap;padding:4px 2px}}
 .chat-who{min-width:0;display:grid}

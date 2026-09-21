@@ -1404,6 +1404,36 @@ async function renderStudents() {
   });
 }
 
+/* Student page tabs: «Прогресс» (#/students/<id>) and «Слова» (#/students/<id>/words). */
+const studentTab = () => (/^#\/students\/[^/]+\/words/.test(location.hash) ? "words" : "progress");
+function showStudentTab(tab) {
+  const tabs = app.querySelector("[data-stabs]");
+  if (!tabs) return;
+  tabs.dataset.active = tab;
+  tabs.querySelectorAll("[data-stab]").forEach(b => { const on = b.dataset.stab === tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
+  app.querySelectorAll("[data-spanel]").forEach(p => {
+    const on = p.dataset.spanel === tab;
+    if (p.hidden === !on) return;
+    p.hidden = !on;
+    if (on) { p.classList.remove("enter"); void p.offsetWidth; p.classList.add("enter"); }
+  });
+  // The words tab is built the first time it is opened.
+  const panel = app.querySelector('[data-spanel="words"]');
+  if (tab === "words" && !panel.dataset.mounted) {
+    panel.dataset.mounted = "1";
+    mountStudentWords(panel, tabs.dataset.student, n => { const c = tabs.querySelector("[data-stab-count]"); if (c) c.textContent = n || ""; });
+  }
+}
+function bindStudentTabs(main, id) {
+  const base = `#/students/${encodeURIComponent(id)}`;
+  main.querySelectorAll("[data-stab]").forEach(b => b.addEventListener("click", () => {
+    const hash = b.dataset.stab === "words" ? base + "/words" : base;
+    showStudentTab(b.dataset.stab);
+    if (location.hash !== hash) location.hash = hash;
+  }));
+  showStudentTab(studentTab());
+}
+
 async function renderStudent(id) {
   removeFloating();
   document.title = "Ученик · English";
@@ -1451,9 +1481,14 @@ async function renderStudent(id) {
         </div>
       </section>
 
-      <div style="margin-top:24px">${progressSummary({ done, total, firstTry, mistakes, words: wordsNote({ total: st.words_total, learned: st.words_learned }) })}</div>
+      <div class="tabs ptabs stabs" role="tablist" aria-label="Разделы ученика" data-active="${studentTab()}" data-stabs data-student="${esc(id)}">
+        <button type="button" role="tab" id="stab-progress" aria-controls="spanel-progress" aria-selected="${studentTab() === "progress"}" data-stab="progress">Прогресс</button>
+        <button type="button" role="tab" id="stab-words" aria-controls="spanel-words" aria-selected="${studentTab() === "words"}" data-stab="words">Слова${st.words_total ? ` <small data-stab-count>${st.words_total}</small>` : ` <small data-stab-count></small>`}</button>
+      </div>
 
-      <section class="card-block student-words" aria-label="Слова ученика" data-student-words></section>
+      <div class="ptab-panel" id="spanel-words" role="tabpanel" aria-labelledby="stab-words" data-spanel="words"${studentTab() === "words" ? "" : " hidden"}></div>
+      <div class="ptab-panel" id="spanel-progress" role="tabpanel" aria-labelledby="stab-progress" data-spanel="progress"${studentTab() === "progress" ? "" : " hidden"}>
+      <div style="margin-top:24px">${progressSummary({ done, total, firstTry, mistakes, words: wordsNote({ total: st.words_total, learned: st.words_learned }) })}</div>
 
       ${weakAll.length ? `<section class="card-block">
         <p class="eyebrow">Слабые места</p>
@@ -1474,12 +1509,13 @@ async function renderStudent(id) {
       </section>` : ""}
 
       ${!weakAll.length && !strong.length ? `<p class="empty">${done ? "Пока мало ответов, чтобы судить о сильных и слабых темах." : "Ученик ещё не решал задания."}</p>` : ""}
+      </div>
 
       <p class="back-line"><a class="back" href="#/students">← Все ученики</a></p>
     </main>`;
   bindTopbar();
   const main = app.querySelector("main");
-  mountStudentWords(main.querySelector("[data-student-words]"), id);
+  bindStudentTabs(main, id);
   stagger(main.querySelector(".summary"));
   countUp(main);
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -2021,6 +2057,12 @@ async function route() {
     else { recovery = false; renderForgot("", "Ссылка устарела или уже использована. Запросите новую."); }
     return;
   }
+  // Back/forward between a student's tabs: switch in place as well.
+  const stu = location.hash.match(/^#\/students\/([^/]+)/);
+  if (session && stu && app.querySelector(`[data-stabs][data-student="${CSS.escape(decodeURIComponent(stu[1]))}"]`)) {
+    showStudentTab(studentTab());
+    return;
+  }
   // Back/forward between profile tabs: switch in place, no reload of the stats.
   if (session && location.hash.startsWith("#/profile") && app.querySelector("[data-ptabs]")) {
     showProfileTab(profileTab());
@@ -2044,7 +2086,7 @@ async function route() {
   else if (location.hash.startsWith("#/words")) renderWords();
   else if (location.hash.startsWith("#/messages")) renderMessages();
   else if (location.hash.startsWith("#/chat/")) renderChat(decodeURIComponent(location.hash.slice("#/chat/".length)));
-  else if (location.hash.startsWith("#/students/")) renderStudent(decodeURIComponent(location.hash.slice("#/students/".length)));
+  else if (location.hash.startsWith("#/students/")) renderStudent(decodeURIComponent(location.hash.slice("#/students/".length).split("/")[0]));
   else if (location.hash.startsWith("#/students")) renderStudents();
   else renderList();
 }

@@ -662,53 +662,97 @@ function parseLine(line) {
   return ru ? { word, ru: ru.slice(0, 200), auto } : { line: t, word, missing: true };
 }
 
-export function mountStudentWords(box, userId) {
-  let data = { total: 0, learned: 0, items: [] }, showAll = false;
+// «Слова» tab on a student's page: add words (one by one or a pasted list) and browse the student's dictionary.
+// onCount(total) keeps the number on the tab up to date.
+export function mountStudentWords(box, userId, onCount = () => {}) {
+  let data = { total: 0, learned: 0, items: [] };
+  const view = { q: "", filter: "all", shown: 60 };
   box.innerHTML = `
-    <p class="eyebrow">Словарь</p>
-    <h2>Слова ученика</h2>
-    <p class="block-note" data-sw-count>Загружаю…</p>
-    <form class="sw-add" data-sw-form autocomplete="off">
-      <label class="visually-hidden" for="sw-word">Слово по-английски</label>
-      <input class="inp" id="sw-word" lang="en" placeholder="Слово" autocapitalize="off" spellcheck="false" enterkeyhint="next" maxlength="60" data-sw-word>
-      <label class="visually-hidden" for="sw-ru">Перевод</label>
-      <input class="inp" id="sw-ru" placeholder="Перевод" enterkeyhint="done" maxlength="200" data-sw-ru>
-      <button class="btn" type="submit">Добавить</button>
-    </form>
-    <p class="sw-hint">Перевод подставляется сам, если слово есть в словаре курса, его можно поправить. Слова сразу появятся у ученика в «Моих словах». <button type="button" class="inline-link" data-sw-bulk-open>Вставить списком</button></p>
-    <div class="sw-bulk" data-sw-bulk hidden>
-      <label class="sw-bulk-label" for="sw-list">По слову на строку: «kitchen — кухня». Без перевода — подставлю из словаря.</label>
-      <textarea class="inp" id="sw-list" rows="6" spellcheck="false" placeholder="kitchen — кухня&#10;look after — присматривать&#10;umbrella" data-sw-text></textarea>
-      <p class="sw-parse" aria-live="polite" data-sw-parse></p>
-      <div class="acct-actions"><button class="btn" type="button" data-sw-bulk-add disabled>Добавить</button><button class="btn quiet" type="button" data-sw-bulk-close>Отмена</button></div>
-    </div>
-    <ul class="words-list sw-list" data-sw-list></ul>
-    <div class="more-line"><button type="button" class="btn quiet" data-sw-more hidden></button></div>`;
+    <section class="card-block sw-block" aria-label="Добавить слова">
+      <p class="eyebrow">Добавить слова</p>
+      <form class="sw-add" data-sw-form autocomplete="off">
+        <label class="visually-hidden" for="sw-word">Слово по-английски</label>
+        <input class="inp" id="sw-word" lang="en" placeholder="Слово" autocapitalize="off" spellcheck="false" enterkeyhint="next" maxlength="60" data-sw-word>
+        <label class="visually-hidden" for="sw-ru">Перевод</label>
+        <input class="inp" id="sw-ru" placeholder="Перевод" enterkeyhint="done" maxlength="200" data-sw-ru>
+        <button class="btn" type="submit">Добавить</button>
+      </form>
+      <p class="sw-hint">Перевод подставляется сам, если слово есть в словаре курса, его можно поправить. Слова сразу появятся у ученика в «Моих словах». <button type="button" class="inline-link" data-sw-bulk-open>Вставить списком</button></p>
+      <div class="sw-bulk" data-sw-bulk hidden>
+        <label class="sw-bulk-label" for="sw-list">По слову на строку: «kitchen — кухня». Без перевода — подставлю из словаря.</label>
+        <textarea class="inp" id="sw-list" rows="6" spellcheck="false" placeholder="kitchen — кухня&#10;look after — присматривать&#10;umbrella" data-sw-text></textarea>
+        <p class="sw-parse" aria-live="polite" data-sw-parse></p>
+        <div class="acct-actions"><button class="btn" type="button" data-sw-bulk-add disabled>Добавить</button><button class="btn quiet" type="button" data-sw-bulk-close>Отмена</button></div>
+      </div>
+    </section>
+    <section class="card-block sw-block" aria-label="Словарь ученика">
+      <p class="eyebrow">Словарь ученика</p>
+      <p class="block-note" data-sw-count>Загружаю…</p>
+      <div class="words-tools" data-sw-tools hidden>
+        <label class="search" for="sw-search">
+          <span class="search-ico">${ui.icons.search}</span>
+          <input class="inp" id="sw-search" type="search" placeholder="Найти слово или перевод" aria-label="Найти слово или перевод" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" data-sw-search>
+        </label>
+        <div class="seg" role="tablist" aria-label="Какие слова показать" data-sw-filters></div>
+      </div>
+      <ul class="words-list sw-list" data-sw-list></ul>
+      <p class="empty words-empty" data-sw-empty hidden></p>
+      <div class="more-line"><button type="button" class="btn quiet" data-sw-more hidden>Показать ещё</button></div>
+    </section>`;
   const $ = sel => box.querySelector(sel);
   const form = $("[data-sw-form]"), wordIn = $("[data-sw-word]"), ruIn = $("[data-sw-ru]");
-  const list = $("[data-sw-list]"), more = $("[data-sw-more]"), count = $("[data-sw-count]");
+  const list = $("[data-sw-list]"), more = $("[data-sw-more]"), count = $("[data-sw-count]"), empty = $("[data-sw-empty]");
+  const tools = $("[data-sw-tools]"), filters = $("[data-sw-filters]"), search = $("[data-sw-search]");
 
+  const picked = () => {
+    const q = view.q.trim().toLowerCase();
+    let items = data.items;
+    if (view.filter === "due") items = items.filter(isDue).sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+    if (view.filter === "learned") items = items.filter(isLearned);
+    if (q) items = items.filter(w => w.word.includes(q) || w.ru.toLowerCase().includes(q));
+    if (view.filter !== "due") items = [...items.filter(w => w.from_teacher), ...items.filter(w => !w.from_teacher)];
+    return items;
+  };
   const draw = (fresh = []) => {
+    const due = data.items.filter(isDue).length;
     count.textContent = data.total
-      ? `${data.total} ${ui.plural(data.total, "слово", "слова", "слов")} · выучено ${data.learned}`
+      ? `${data.total} ${ui.plural(data.total, "слово", "слова", "слов")} · выучено ${data.learned}${due ? ` · ${due} ждут повторения` : ""}`
       : "Пока пусто. Добавьте первые слова — ученик увидит их в «Моих словах» и сможет тренировать.";
-    const items = showAll ? data.items : data.items.slice(0, 10);
-    list.innerHTML = items.map(w => {
+    onCount(data.total);
+    tools.hidden = !data.total;
+    filters.innerHTML = [["all", "Все", data.total], ["due", "Повторить", due], ["learned", "Выучено", data.learned]].map(([id, name, n]) =>
+      `<button type="button" role="tab" aria-selected="${view.filter === id}" data-sw-filter="${id}">${name} <small>${n}</small></button>`).join("");
+    const found = picked(), part = found.slice(0, view.shown);
+    const grouped = view.filter !== "due";
+    let last = "";
+    list.innerHTML = part.map(w => {
+      const g = grouped ? (w.from_teacher ? "Добавлены учителем, ещё не тренировались" : addedGroup(w)) : "";
+      const head = g && g !== last ? `<li class="word-group" aria-hidden="true">${g}</li>` : "";
+      last = g;
       const mark = isDue(w) ? `<i class="word-dot"></i>` : isLearned(w) ? `<i class="word-tick">${CHECK_ICON}</i>` : "";
-      return `<li class="word-row${fresh.includes(w.word) ? " in" : ""}">
+      return head + `<li class="word-row${fresh.includes(w.word) ? " in" : ""}">
         <div class="word-main" title="${wordStatus(w)}"><b lang="en">${esc(w.word)}</b><span>${esc(w.ru)}</span><span class="visually-hidden">, ${wordStatus(w)}</span></div>
         <span class="word-mark" aria-hidden="true">${mark}</span>
         <button type="button" class="icon-btn quiet danger" aria-label="Удалить слово ${esc(w.word)} у ученика" title="Удалить у ученика" data-sw-remove="${esc(w.word)}">${ui.icons.trash}</button>
       </li>`;
     }).join("");
-    more.hidden = data.items.length <= 10;
-    more.textContent = showAll ? "Свернуть" : `Показать все (${data.items.length})`;
+    more.hidden = found.length <= view.shown;
+    empty.hidden = !data.total || !!found.length;
+    empty.textContent = view.q.trim() ? "Ничего не нашлось." : view.filter === "due" ? "Сейчас повторять нечего." : "Выученных пока нет.";
   };
   const load = async (fresh = []) => {
     try { data = await roles.studentWords(userId); draw(fresh); }
     catch (err) { if (err instanceof AuthRequired) { ui.handleError(err); return; } count.textContent = "Не удалось загрузить слова ученика."; }
   };
   load();
+
+  search.addEventListener("input", () => { view.q = search.value; view.shown = 60; draw(); });
+  filters.addEventListener("click", e => {
+    const b = e.target.closest("[data-sw-filter]");
+    if (!b) return;
+    view.filter = b.dataset.swFilter; view.shown = 60; draw();
+  });
+  more.addEventListener("click", () => { view.shown += 60; draw(); });
 
   const send = async (items, btn) => {
     btn.disabled = true; btn.classList.add("loading");
@@ -719,6 +763,7 @@ export function mountStudentWords(box, userId) {
       if (r.updated) parts.push(`у ${r.updated} обновлён перевод`);
       if (r.skipped) parts.push(`пропущено ${r.skipped}`);
       ui.toast(parts.length ? parts.join(", ").replace(/^./, c => c.toUpperCase()) : "Ничего не добавлено");
+      view.q = ""; search.value = ""; view.filter = "all";
       await load(items.map(x => x.word.trim().toLowerCase()));
       return true;
     } catch (err) {
@@ -768,7 +813,6 @@ export function mountStudentWords(box, userId) {
     if (await send(parsed.map(({ word, ru }) => ({ word, ru })), bulkAdd)) { text.value = ""; reparse(); bulk.hidden = true; }
   });
 
-  more.addEventListener("click", () => { showAll = !showAll; draw(); });
   list.addEventListener("click", async e => {
     const del = e.target.closest("[data-sw-remove]");
     if (!del) return;
@@ -776,7 +820,11 @@ export function mountStudentWords(box, userId) {
     del.disabled = true;
     try {
       await roles.removeStudentWord(userId, word);
-      const gone = () => { data = { ...data, total: data.total - 1, learned: data.learned - (data.items.find(w => w.word === word)?.streak >= 1 ? 1 : 0), items: data.items.filter(w => w.word !== word) }; draw(); };
+      const gone = () => {
+        const w = data.items.find(x => x.word === word);
+        data = { ...data, total: data.total - 1, learned: data.learned - (w && isLearned(w) ? 1 : 0), items: data.items.filter(x => x.word !== word) };
+        draw();
+      };
       if (ui.reduced()) gone(); else { li.style.height = li.offsetHeight + "px"; li.classList.add("leaving"); setTimeout(gone, 260); }
       ui.toast(`Слово «${word}» удалено у ученика`);
     } catch (err) {
