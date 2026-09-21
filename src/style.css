@@ -992,12 +992,19 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .words-sort{margin-left:auto;color:var(--muted);text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent)}
 .words-list{list-style:none;margin:8px 0 0;padding:0}
 .words-list>.word-row:first-child{border-top:1px solid var(--line)}
-.word-row{display:flex;align-items:center;gap:4px;min-height:52px;padding:6px 0;border-bottom:1px solid var(--line);transition:height var(--t2) var(--ease),opacity var(--t2) ease,padding var(--t2) var(--ease)}
+.word-row{display:flex;align-items:center;gap:4px;min-height:52px;padding:0;border-bottom:1px solid var(--line);transition:height var(--t2) var(--ease),opacity var(--t2) ease,padding var(--t2) var(--ease)}
 .word-row.in,.word-group.in{animation:rise var(--t3) var(--ease-out) both;animation-delay:calc(var(--i,0) * 24ms)}
 .word-row.leaving{overflow:hidden;opacity:0;height:0!important;min-height:0;padding-block:0;border-bottom-color:transparent}
 .word-group{padding:22px 0 8px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .words-list .word-group:first-child{padding-top:10px}
-.word-main{flex:1;min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:10px;row-gap:0;line-height:1.35}
+.word-main{flex:1;min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;column-gap:10px;row-gap:0;line-height:1.35;padding:6px 0;border:0;background:none;text-align:left;color:inherit;border-radius:8px}
+.word-main:hover span{color:var(--ink)}
+.word-row.editing{display:block;padding:12px 0 14px}
+.word-edit{display:grid;gap:8px;animation:dropIn var(--t2) var(--ease-out)}
+.word-edit-label{font-size:14px;color:var(--muted)}
+.word-edit-label b{color:var(--ink);font-size:16px}
+.word-edit .acct-actions{margin-top:2px;max-width:320px}
+@media (prefers-reduced-motion: reduce){.word-edit{animation:none}}
 .word-main b{font-size:16px;font-weight:600;overflow-wrap:anywhere}
 .word-main span{font-size:15px;color:var(--muted);overflow-wrap:anywhere}
 .word-mark{flex:none;display:grid;place-items:center;width:16px}
@@ -1051,8 +1058,11 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 @keyframes studyIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 .study-head{display:flex;align-items:center;gap:12px;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px}
 .study-head .icon-btn{color:var(--ink);border-color:transparent;background:none}
-.study-tabs{flex:1;max-width:260px;margin-inline:auto;grid-template-columns:1fr 1fr}
+.study-tabs{flex:1;max-width:330px;margin-inline:auto;grid-template-columns:repeat(3,1fr)}
+.study-tabs::before{width:calc((100% - 16px) / 3)}
 .study-tabs[data-active="quiz"]::before{transform:translateX(calc(100% + 4px))}
+.study-tabs[data-active="write"]::before{transform:translateX(calc(200% + 8px))}
+.study-tabs button{font-size:14px;padding-inline:4px}
 .study-count{flex:none;font-family:var(--mono);font-size:13px;color:var(--muted);min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
 .study-progress{height:2px;background:var(--line)}
 .study-progress i{display:block;height:100%;width:0;background:var(--accent);transition:width var(--t3) var(--ease)}
@@ -1078,6 +1088,13 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .study-choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
 .study-choice .btn{min-height:50px}
 .study-hint{font-size:13px;color:var(--muted);text-align:center;line-height:1.5}
+.study-undo{min-height:36px;margin-top:-10px;display:flex;justify-content:center}
+.study-undo .inline-link{color:var(--muted);font-weight:500;text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent);animation:fadeIn var(--t2) ease}
+.write-inp{width:100%;min-height:52px;font-size:20px;text-align:center}
+.write-inp.good{border-color:var(--good);background:var(--good-soft);color:var(--good)}
+.write-inp.bad{border-color:var(--bad);background:var(--bad-soft);color:var(--bad);text-decoration:line-through;animation:nudge .3s ease}
+.study-choice.single{grid-template-columns:1fr}
+.write-step .card-fb b{color:var(--ink);font-size:16px}
 @media (hover:hover) and (pointer:fine){.study-hint{display:none}}
 
 /* quiz */

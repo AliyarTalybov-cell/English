@@ -3,7 +3,8 @@ import { api, auth, avatar, roles, messages, profile, cache, authMessage, AuthRe
 import { mountLesson, setWordSaver, esc, sayButton } from "./engine.js";
 import { getTheme, applyTheme, themeControlHtml, bindThemeControl } from "./theme.js";
 import { COURSE, LESSON_GOALS, LESSON_LABELS, LEVEL, AUTHOR } from "./course.js";
-import { stopSpeech, speakEnglish } from "./speech.js";
+import { stopSpeech } from "./speech.js";
+import { setupWords, renderWords, wordsNote, fillWordsLine } from "./words.js";
 
 applyTheme(getTheme());
 // The word popup in lessons can save a word to «Мои слова».
@@ -1026,21 +1027,16 @@ async function renderProfile() {
   }
 }
 
-// « · выучено 11 слов из 16» after the solved-tasks line; nothing while there are no saved words.
-function wordsNote(w, href = "") {
-  if (!w?.total) return "";
-  const n = w.learned || 0;
-  const text = `выучено <b>${n}</b> ${plural(n, "слово", "слова", "слов")} из ${w.total}`;
-  return ` · ${href ? `<a class="words-note" href="${href}">${text}</a>` : `<span class="words-note">${text}</span>`}`;
-}
-async function fillWordsLine() {
-  try {
-    const d = await api.myWords(false, 1, 0);
-    const w = { total: d.total || 0, learned: d.learned || 0 };
-    cache.set("wordstats", w);
-    const el = app.querySelector("[data-words-line]");
-    if (el) el.innerHTML = wordsNote(w, "#/words");
-  } catch {}
+// Three tiles, the course bar and the solved-tasks line: the same on «Ваш прогресс» and on a student's page.
+function progressSummary({ done, total, firstTry, mistakes, words = "" }) {
+  const coursePct = pct(done, total);
+  return `<section class="summary" aria-label="Общий прогресс">
+      <div class="stat"><b><span data-count="${coursePct}" data-suffix="%">${coursePct}%</span></b><span>курса пройдено</span></div>
+      <div class="stat"><b>${done ? `<span data-count="${firstTry}" data-suffix="%">${firstTry}%</span>` : "—"}</b><span>с первой попытки</span></div>
+      <div class="stat${mistakes ? " warn" : ""}"><b><span data-count="${mistakes}">${mistakes}</span></b><span>ошибок ждут повторения</span></div>
+    </section>
+    <div class="bar big" aria-label="Пройдено ${coursePct}%"><i data-pct="${coursePct}"></i></div>
+    <p class="hint-line">Решено ${done} ${plural(done, "задание", "задания", "заданий")} из ${total}${words}</p>`;
 }
 
 function paintProfile(lessons, silent) {
@@ -1088,13 +1084,7 @@ function paintProfile(lessons, silent) {
           <p class="lead">Что уже получается, где чаще всего ошибки и что стоит повторить в первую очередь.</p>
         </header>
 
-        <section class="summary" aria-label="Общий прогресс">
-          <div class="stat"><b><span data-count="${coursePct}" data-suffix="%">${coursePct}%</span></b><span>курса пройдено</span></div>
-          <div class="stat"><b>${done ? `<span data-count="${firstTry}" data-suffix="%">${firstTry}%</span>` : "—"}</b><span>с первой попытки</span></div>
-          <div class="stat${mistakes ? " warn" : ""}"><b><span data-count="${mistakes}">${mistakes}</span></b><span>ошибок ждут повторения</span></div>
-        </section>
-        <div class="bar big" aria-label="Пройдено ${coursePct}%"><i data-pct="${coursePct}"></i></div>
-        <p class="hint-line">Решено ${done} заданий из ${total}<span data-words-line>${wordsNote(cache.get("wordstats"), "#/words")}</span></p>
+        ${progressSummary({ done, total, firstTry, mistakes, words: `<span data-words-line>${wordsNote(cache.get("wordstats"), "#/words")}</span>` })}
 
         <section class="card-block">
           <p class="eyebrow">Ваш план</p>
@@ -1461,13 +1451,7 @@ async function renderStudent(id) {
         </div>
       </section>
 
-      <section class="summary" aria-label="Общий прогресс" style="margin-top:24px">
-        <div class="stat"><b><span data-count="${coursePct}" data-suffix="%">${coursePct}%</span></b><span>курса пройдено</span></div>
-        <div class="stat"><b>${done ? `<span data-count="${firstTry}" data-suffix="%">${firstTry}%</span>` : "—"}</b><span>с первой попытки</span></div>
-        <div class="stat${mistakes ? " warn" : ""}"><b><span data-count="${mistakes}">${mistakes}</span></b><span>ошибок ждут повторения</span></div>
-      </section>
-      <div class="bar big" aria-label="Пройдено ${coursePct}%"><i data-pct="${coursePct}"></i></div>
-      <p class="hint-line">Решено ${done} ${plural(done, "задание", "задания", "заданий")} из ${total}${wordsNote({ total: st.words_total, learned: st.words_learned })}</p>
+      <div style="margin-top:24px">${progressSummary({ done, total, firstTry, mistakes, words: wordsNote({ total: st.words_total, learned: st.words_learned }) })}</div>
 
       ${weakAll.length ? `<section class="card-block">
         <p class="eyebrow">Слабые места</p>
@@ -1498,490 +1482,6 @@ async function renderStudent(id) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     main.querySelectorAll(".bar i[data-pct]").forEach(b => { b.style.width = b.dataset.pct + "%"; });
   }));
-}
-
-/* ---------- my words: saved translations, trained with cards ---------- */
-const DAY = 86400000;
-// «Знаю» (or a right answer in the quiz) makes a word learned; «Ещё учу» or a mistake takes it back.
-// A learned word still comes back for review on the usual schedule.
-const isDue = w => new Date(w.due_at).getTime() <= Date.now();
-const isLearned = w => w.streak >= 1;
-const REVIEW_GAP = [1, 1, 3, 7, 14, 30]; // days after a streak of 0..5, like _review_gap in the database
-function wordStatus(w) {
-  if (isDue(w)) return isLearned(w) ? "выучено · повторить сегодня" : "повторить сегодня";
-  const days = Math.max(1, Math.ceil((new Date(w.due_at).getTime() - Date.now()) / DAY));
-  const when = days === 1 ? "завтра" : `через ${days} ${plural(days, "день", "дня", "дней")}`;
-  return isLearned(w) ? `выучено · повтор ${when}` : `повтор ${when}`;
-}
-
-// The list keeps its search, filter and sort while the data refreshes in the background.
-const wordsView = { q: "", filter: "all", sort: "new", shown: 60 };
-// Removal waits a few seconds so «Вернуть» in the toast can undo it.
-const pendingRemovals = new Map(); // word -> timer
-
-async function loadAllWords() {
-  const first = await api.myWords(false, 100, 0);
-  const pages = Math.ceil((first.total || 0) / 100);
-  if (pages <= 1) return first;
-  const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, k) => api.myWords(false, 100, (k + 1) * 100)));
-  return { ...first, items: [...first.items, ...rest.flatMap(r => r.items || [])] };
-}
-
-function undoToast(text, onUndo) {
-  document.querySelector(".toast")?.remove();
-  const t = document.createElement("div");
-  t.className = "toast has-action"; t.setAttribute("role", "status");
-  t.innerHTML = `<span>${esc(text)}</span><button type="button">Вернуть</button>`;
-  const hide = () => { t.classList.add("out"); setTimeout(() => t.remove(), 250); };
-  t.querySelector("button").addEventListener("click", () => { onUndo(); hide(); });
-  document.body.appendChild(t);
-  setTimeout(hide, 4000);
-}
-
-async function renderWords() {
-  removeFloating();
-  document.title = "Мои слова · English";
-  const token = ++screenToken;
-  let items = [];
-  const v = wordsView;
-
-  const visible = () => items.filter(w => !pendingRemovals.has(w.word));
-  const picked = () => {
-    const q = v.q.trim().toLowerCase();
-    let list = visible();
-    if (v.filter === "due") list = list.filter(isDue);
-    if (v.filter === "learned") list = list.filter(isLearned);
-    if (q) list = list.filter(w => w.word.toLowerCase().includes(q) || w.ru.toLowerCase().includes(q));
-    if (v.sort === "abc") list = list.slice().sort((a, b) => a.word.localeCompare(b.word, "en"));
-    else if (v.filter === "due") list = list.slice().sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
-    return list;
-  };
-
-  const paint = () => {
-    const all = visible(), due = all.filter(isDue).length, learned = all.filter(isLearned).length;
-    if (!all.length) v.filter = "all";
-    app.innerHTML = topbar(true) + `
-      <main class="wrap screen">
-        <header class="hero">
-          <p class="kicker">Словарь</p>
-          <h1>Мои слова</h1>
-          <p class="lead">Слова, которые вы сохранили из перевода по тапу в уроках. Тренируются карточками: слово — перевод.</p>
-        </header>
-        ${all.length ? `
-          <div class="words-top">
-            <p class="hint-line"><b>${all.length}</b> ${plural(all.length, "слово", "слова", "слов")}${due ? ` · <b>${due}</b> ждут повторения` : " · на сегодня всё изучено"}</p>
-            <button class="btn" type="button" data-train>${due ? "Повторить слова" : "Учить слова"}</button>
-          </div>
-          <div class="words-tools">
-            <label class="search" for="words-search">
-              <span class="search-ico">${SEARCH_ICON}</span>
-              <input class="inp" id="words-search" type="search" placeholder="Найти слово или перевод" aria-label="Найти слово или перевод" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" value="${esc(v.q)}" data-search>
-            </label>
-            <div class="words-filter">
-              <div class="seg" role="tablist" aria-label="Какие слова показать">
-                ${[["all", "Все", all.length], ["due", "Повторить", due], ["learned", "Выучено", learned]].map(([id, name, n]) =>
-                  `<button type="button" role="tab" aria-selected="${v.filter === id}" data-filter="${id}">${name} <small>${n}</small></button>`).join("")}
-              </div>
-              <button type="button" class="inline-link words-sort" data-sort>${v.sort === "abc" ? "По алфавиту" : "Сначала новые"}</button>
-            </div>
-            <p class="words-legend" aria-hidden="true"><span><i class="word-dot"></i>повторить сегодня</span><span><i class="word-tick">${CHECK_ICON}</i>выучено</span></p>
-          </div>
-          <ul class="words-list" data-list></ul>
-          <p class="empty words-empty" data-empty hidden></p>
-          <div class="more-line"><button type="button" class="btn quiet" data-more hidden>Показать ещё</button></div>
-          <div class="words-clear" data-clear-box><button type="button" class="inline-link words-clear-link" data-clear>Удалить все слова</button></div>`
-        : `<p class="empty">Пока пусто. В уроке нажмите на английское слово в объяснении и в подсказке нажмите «+», чтобы слово попало сюда.</p>`}
-        <p class="back-line"><a class="back" href="#/">← Все уроки</a></p>
-      </main>`;
-    bindTopbar();
-    const main = app.querySelector("main");
-    if (!all.length) return;
-    const list = main.querySelector("[data-list]"), empty = main.querySelector("[data-empty]"), more = main.querySelector("[data-more]");
-
-    const counts = () => {
-      const now = visible(), due = now.filter(isDue).length;
-      main.querySelector(".words-top .hint-line").innerHTML = `<b>${now.length}</b> ${plural(now.length, "слово", "слова", "слов")}${due ? ` · <b>${due}</b> ждут повторения` : " · на сегодня всё изучено"}`;
-      const n = { all: now.length, due, learned: now.filter(isLearned).length };
-      main.querySelectorAll("[data-filter] small").forEach(el => { el.textContent = n[el.parentElement.dataset.filter]; });
-    };
-    const drawList = (animate = false) => {
-      counts();
-      const found = picked(), part = found.slice(0, v.shown);
-      // Newest-first lists are split by when the word was added: today, this week, earlier.
-      const grouped = v.sort === "new" && v.filter !== "due";
-      let lastGroup = "";
-      list.innerHTML = part.map((w, k) => {
-        const g = grouped ? addedGroup(w) : "";
-        const head = g && g !== lastGroup ? `<li class="word-group${animate && k < 12 ? " in" : ""}" style="--i:${k}" aria-hidden="true">${g}</li>` : "";
-        lastGroup = g;
-        return head + wordRow(w, animate && k < 12 ? k : -1);
-      }).join("");
-      list.querySelectorAll("[data-say-slot]").forEach(slot => slot.replaceWith(sayButton(slot.dataset.saySlot, `Послушать ${slot.dataset.saySlot}`)));
-      more.hidden = found.length <= v.shown;
-      empty.hidden = !!found.length;
-      empty.textContent = v.q.trim() ? "Ничего не нашлось. Попробуйте другое написание."
-        : v.filter === "due" ? "На сегодня всё изучено."
-        : v.filter === "learned" ? "Выученных пока нет. Нажмите «Знаю» на карточке, и слово появится здесь." : "";
-    };
-    drawList(true);
-
-    main.querySelector("[data-train]").addEventListener("click", () => startWordTraining());
-    const search = main.querySelector("[data-search]");
-    search.addEventListener("input", () => { v.q = search.value; v.shown = 60; drawList(); });
-    main.querySelectorAll("[data-filter]").forEach(b => b.addEventListener("click", () => {
-      v.filter = b.dataset.filter; v.shown = 60;
-      main.querySelectorAll("[data-filter]").forEach(x => x.setAttribute("aria-selected", String(x === b)));
-      drawList(true);
-    }));
-    main.querySelector("[data-sort]").addEventListener("click", e => {
-      v.sort = v.sort === "abc" ? "new" : "abc";
-      e.currentTarget.textContent = v.sort === "abc" ? "По алфавиту" : "Сначала новые";
-      drawList(true);
-    });
-    more.addEventListener("click", () => { v.shown += 60; drawList(); });
-
-    // «Удалить все слова»: asked in place, no undo — everything goes at once.
-    const clearBox = main.querySelector("[data-clear-box]");
-    const clearLink = () => {
-      clearBox.innerHTML = `<button type="button" class="inline-link words-clear-link" data-clear>Удалить все слова</button>`;
-    };
-    clearBox.addEventListener("click", async e => {
-      if (e.target.closest("[data-clear]")) {
-        const n = visible().length;
-        clearBox.innerHTML = `<div class="words-confirm" role="group" aria-label="Удалить все слова">
-          <p>Удалить все ${n} ${plural(n, "слово", "слова", "слов")}? Вместе с ними пропадёт и история повторений. Отменить это будет нельзя.</p>
-          <div class="acct-actions"><button type="button" class="btn warn" data-clear-yes>Удалить все</button><button type="button" class="btn quiet" data-clear-no>Отмена</button></div>
-        </div>`;
-        clearBox.querySelector("[data-clear-no]").focus({ preventScroll: true });
-        clearBox.scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" });
-        return;
-      }
-      if (e.target.closest("[data-clear-no]")) { clearLink(); clearBox.querySelector("[data-clear]").focus(); return; }
-      const yes = e.target.closest("[data-clear-yes]");
-      if (!yes) return;
-      yes.disabled = true; yes.classList.add("loading");
-      try {
-        await api.removeAllWords();
-        pendingRemovals.forEach(t => clearTimeout(t)); pendingRemovals.clear();
-        items = [];
-        cache.set("words", { total: 0, due: 0, items: [] });
-        toast("Все слова удалены");
-        if (token === screenToken) paint();
-      } catch (err) {
-        if (err instanceof AuthRequired) { handleError(err); return; }
-        yes.disabled = false; yes.classList.remove("loading");
-        toast("Не удалось удалить. Попробуйте ещё раз.");
-      }
-    });
-
-    list.addEventListener("click", e => {
-      const del = e.target.closest("[data-remove]");
-      if (!del) return;
-      const li = del.closest("li"), word = del.dataset.remove;
-      const timer = setTimeout(async () => {
-        pendingRemovals.delete(word);
-        try {
-          await api.removeWord(word);
-          items = items.filter(w => w.word !== word);
-          cache.set("words", { ...cache.get("words"), total: items.length, due: items.filter(isDue).length, items });
-        } catch (err) {
-          if (err instanceof AuthRequired) { handleError(err); return; }
-          toast("Не удалось удалить. Попробуйте ещё раз.");
-          if (token === screenToken) paint();
-        }
-      }, 4200);
-      pendingRemovals.set(word, timer);
-      const gone = () => { if (token === screenToken) (visible().length ? drawList() : paint()); };
-      if (reduced()) gone();
-      else { li.style.height = li.offsetHeight + "px"; li.classList.add("leaving"); setTimeout(gone, 260); }
-      undoToast("Слово удалено", () => {
-        clearTimeout(pendingRemovals.get(word));
-        pendingRemovals.delete(word);
-        if (token === screenToken) paint();
-      });
-    });
-  };
-
-  const saved = cache.get("words");
-  if (saved) { items = saved.items || []; paint(); }
-  else {
-    app.innerHTML = topbar(true) + `<main class="wrap" aria-busy="true"><div class="skel-wrap" aria-label="Загружаю слова"><div class="skel line" style="width:30%"></div><div class="skel title"></div><div class="skel row"></div><div class="skel row"></div><div class="skel row"></div></div></main>`;
-    bindTopbar();
-  }
-  try {
-    const data = await loadAllWords();
-    if (token !== screenToken) return;
-    cache.set("words", data);
-    // Compare what the screen shows, not exact timestamps, so a fresh copy of the same list does not repaint it.
-    const look = d => (d.items || []).map(w => [w.word, w.ru, w.streak, isDue(w), wordStatus(w)].join("|")).join("\n");
-    if (!saved || look(saved) !== look(data)) {
-      const q = document.activeElement?.matches?.("[data-search]");
-      items = data.items || []; paint();
-      if (q) app.querySelector("[data-search]")?.focus({ preventScroll: true });
-    }
-  } catch (err) { if (!saved) handleError(err); }
-}
-
-function addedGroup(w) {
-  const start = new Date(); start.setHours(0, 0, 0, 0);
-  const t = new Date(w.added_at).getTime();
-  if (t >= start.getTime()) return "Сегодня";
-  if (t >= start.getTime() - 6 * DAY) return "На этой неделе";
-  return "Раньше";
-}
-
-const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
-
-// One compact line: word, translation, a small mark for the status (dot — to review today, tick — learned).
-function wordRow(w, k = -1) {
-  const status = wordStatus(w);
-  const mark = isDue(w) ? `<i class="word-dot"></i>` : isLearned(w) ? `<i class="word-tick">${CHECK_ICON}</i>` : "";
-  return `<li class="word-row${k >= 0 ? " in" : ""}"${k >= 0 ? ` style="--i:${k}"` : ""}>
-    <div class="word-main" title="${status}"><b lang="en">${esc(w.word)}</b><span>${esc(w.ru)}</span><span class="visually-hidden">, ${status}</span></div>
-    <span class="word-mark" aria-hidden="true">${mark}</span>
-    <span data-say-slot="${esc(w.word)}"></span>
-    <button type="button" class="icon-btn quiet danger" aria-label="Удалить слово ${esc(w.word)}" title="Удалить слово" data-remove="${esc(w.word)}">${TRASH_ICON}</button>
-  </li>`;
-}
-
-// Study mode: a full screen with two ways to work — flip cards («Знаю» / «Ещё учу») and a four-option quiz.
-async function startWordTraining() {
-  let words = [], all = [];
-  try {
-    const [due, everything] = await Promise.all([api.myWords(true, 20, 0), api.myWords(false, 100, 0)]);
-    all = everything.items || [];
-    words = due.items?.length ? due.items : all.slice(0, 20);
-  } catch (err) {
-    if (err instanceof AuthRequired) { handleError(err); return; }
-    toast("Не удалось загрузить слова.");
-    return;
-  }
-  if (!words.length) { toast("Слов пока нет."); return; }
-  const shuffle = arr => arr.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-  // Wrong options come from the whole dictionary, not only from today's words.
-  const pool = all.length >= 4 ? all : [];
-  let mode = "cards", deck = shuffle(words), i = 0;
-  let known = [], learning = [], right = 0, mistakes = [], answered = 0, busy = false;
-  // A word goes to the schedule once per session, and again only when the answer changes
-  // (for example «Ещё учу» first and «Знаю» on the second round).
-  const counted = new Map(), wrongFirst = new Set(); // word -> last answer sent; words answered both ways
-  const record = (word, ok) => {
-    if (counted.get(word) === ok) return;
-    if (counted.has(word)) wrongFirst.add(word);
-    counted.set(word, ok); answered++;
-    api.wordResult(word, ok).catch(() => {});
-  };
-  // The dictionary list is updated right here, so closing the study screen needs no reload.
-  const saved = cache.get("words");
-  const wait = ms => new Promise(r => setTimeout(r, reduced() ? 0 : ms));
-
-  const opener = document.activeElement;
-  const root = document.createElement("div");
-  root.className = "study";
-  root.setAttribute("role", "dialog");
-  root.setAttribute("aria-modal", "true");
-  root.setAttribute("aria-label", "Учить слова");
-  root.innerHTML = `
-    <header class="study-head">
-      <button type="button" class="icon-btn" aria-label="Закрыть" data-close>${CLOSE_ICON}</button>
-      <div class="tabs study-tabs" role="tablist" data-active="cards">
-        <button type="button" role="tab" aria-selected="true" data-mode="cards">Карточки</button>
-        <button type="button" role="tab" aria-selected="false" data-mode="quiz"${pool.length ? "" : " disabled title='Нужно хотя бы 4 слова'"}>Выбор</button>
-      </div>
-      <p class="study-count" data-count></p>
-    </header>
-    <div class="study-progress" aria-hidden="true"><i data-progress></i></div>
-    <main class="study-body" data-body></main>`;
-  document.body.appendChild(root);
-  document.documentElement.classList.add("no-scroll");
-  const body = root.querySelector("[data-body]");
-
-  const close = () => {
-    document.removeEventListener("keydown", onKey);
-    document.documentElement.classList.remove("no-scroll");
-    root.classList.add("out");
-    setTimeout(() => root.remove(), reduced() ? 0 : 140);
-    opener?.focus?.({ preventScroll: true });
-    stopSpeech();
-    if (answered && saved) {
-      const items = (saved.items || []).map(w => {
-        if (!counted.has(w.word)) return w;
-        const streak = !counted.get(w.word) ? 0 : wrongFirst.has(w.word) ? 1 : w.streak + 1;
-        return { ...w, streak, due_at: new Date(Date.now() + REVIEW_GAP[Math.min(streak, 5)] * DAY).toISOString() };
-      });
-      cache.set("words", { ...saved, items, due: items.filter(isDue).length });
-    }
-    if (answered && location.hash.startsWith("#/words")) renderWords();
-  };
-  root.querySelector("[data-close]").addEventListener("click", close);
-  root.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => {
-    if (b.disabled || b.dataset.mode === mode || busy) return;
-    mode = b.dataset.mode;
-    root.querySelector(".study-tabs").dataset.active = mode;
-    root.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-selected", String(x === b)));
-    restart(shuffle(words));
-  }));
-
-  const progress = () => {
-    const done = Math.min(i, deck.length);
-    root.querySelector("[data-count]").textContent = i < deck.length ? `${i + 1} / ${deck.length}` : "";
-    root.querySelector("[data-progress]").style.width = `${(done / deck.length) * 100}%`;
-  };
-
-  const onKey = e => {
-    if (e.key === "Escape") { close(); return; }
-    if (mode !== "cards" || !root.querySelector(".flip")) return;
-    if (e.key === "ArrowRight") decide(true);
-    if (e.key === "ArrowLeft") decide(false);
-    if (e.key === " " || e.key === "Enter") { if (e.target.closest?.("button:not(.flip)")) return; e.preventDefault(); root.querySelector(".flip").click(); }
-  };
-  document.addEventListener("keydown", onKey);
-
-  /* cards */
-  let decide = () => {};
-  const drawCard = (from = "") => {
-    const c = deck[i];
-    progress();
-    body.innerHTML = `
-      <div class="deck">
-        <div class="flip${from ? " enter" : ""}" role="button" tabindex="0" aria-label="Карточка: ${esc(c.word)}. Нажмите, чтобы перевернуть" data-flip>
-          <div class="flip-inner">
-            <div class="flip-face front"><span class="flip-word" lang="en">${esc(c.word)}</span></div>
-            <div class="flip-face back" aria-hidden="true"><span class="flip-small" lang="en">${esc(c.word)}</span><span class="flip-word">${esc(c.ru)}</span></div>
-          </div>
-          <span class="flip-say" data-say></span>
-        </div>
-      </div>
-      <div class="study-choice">
-        <button type="button" class="btn quiet" data-no>Ещё учу</button>
-        <button type="button" class="btn ghost" data-yes>Знаю</button>
-      </div>
-      <p class="study-hint">Нажмите на карточку, чтобы перевернуть.<br>Смахните вправо, если знаете, влево — если ещё учите.</p>`;
-    const card = body.querySelector(".flip"), face = card.querySelector(".flip-inner");
-    const say = sayButton(c.word, `Послушать ${c.word}`);
-    body.querySelector("[data-say]").replaceWith(say);
-    say.classList.add("flip-say");
-    const flip = () => {
-      card.classList.toggle("turned");
-      card.querySelector(".front").setAttribute("aria-hidden", String(card.classList.contains("turned")));
-      card.querySelector(".back").setAttribute("aria-hidden", String(!card.classList.contains("turned")));
-    };
-    card.addEventListener("click", e => { if (!e.target.closest(".say") && !moved) flip(); });
-    body.querySelector("[data-yes]").addEventListener("click", () => decide(true));
-    body.querySelector("[data-no]").addEventListener("click", () => decide(false));
-
-    decide = async ok => {
-      if (busy) return;
-      busy = true;
-      stopSpeech();
-      record(c.word, ok);
-      (ok ? known : learning).push(c);
-      navigator.vibrate?.(8);
-      card.style.transition = "";
-      card.style.transform = "";
-      card.classList.add(ok ? "fly-right" : "fly-left");
-      await wait(230);
-      i++; busy = false;
-      if (i < deck.length) drawCard(ok ? "right" : "left"); else finish();
-    };
-
-    // The card follows the finger, leans a little and shows which way it is going; a long enough swipe decides.
-    let x0 = null, y0 = 0, dx = 0, moved = false, sideways = null;
-    card.addEventListener("pointerdown", e => {
-      if (e.pointerType === "mouse" || e.target.closest(".say")) return;
-      x0 = e.clientX; y0 = e.clientY; dx = 0; moved = false; sideways = null;
-    });
-    card.addEventListener("pointermove", e => {
-      if (x0 === null) return;
-      dx = e.clientX - x0;
-      const dy = e.clientY - y0;
-      if (sideways === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) sideways = Math.abs(dx) > Math.abs(dy);
-      if (!sideways) return;
-      moved = true;
-      card.setPointerCapture?.(e.pointerId);
-      card.style.transition = "none";
-      card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
-      card.style.setProperty("--lean", Math.min(1, Math.abs(dx) / 110).toFixed(2));
-      card.style.setProperty("--lean-color", dx > 0 ? "var(--good)" : "var(--bad)");
-    });
-    const release = () => {
-      if (x0 === null) return;
-      x0 = null;
-      if (moved && Math.abs(dx) > Math.min(110, card.offsetWidth * 0.28)) { decide(dx > 0); return; }
-      card.style.transition = "";
-      card.style.transform = "";
-      card.style.removeProperty("--lean");
-      setTimeout(() => { moved = false; }, 0);
-    };
-    card.addEventListener("pointerup", release);
-    card.addEventListener("pointercancel", release);
-    card.focus({ preventScroll: true });
-  };
-
-  /* quiz */
-  const drawQuiz = (enter = false) => {
-    const c = deck[i];
-    progress();
-    const options = shuffle([c, ...shuffle(pool.filter(w => w.word !== c.word)).slice(0, 3)]);
-    body.innerHTML = `
-      <div class="quiz-step${enter ? " enter" : ""}">
-        <p class="eyebrow">Как по-английски</p>
-        <p class="study-ask">${esc(c.ru)}</p>
-        <div class="card-opts">${options.map(o => `<button type="button" class="opt" lang="en" data-pick="${esc(o.word)}">${esc(o.word)}</button>`).join("")}</div>
-        <p class="card-fb" aria-live="polite"></p>
-      </div>`;
-    body.querySelectorAll("[data-pick]").forEach(btn => btn.addEventListener("click", async () => {
-      if (busy) return;
-      busy = true;
-      const ok = btn.dataset.pick === c.word;
-      record(c.word, ok);
-      if (ok) right++; else mistakes.push(c);
-      body.querySelectorAll("[data-pick]").forEach(x => {
-        x.disabled = true;
-        if (x.dataset.pick === c.word) x.classList.add("good");
-        else if (x === btn) x.classList.add("bad");
-      });
-      body.querySelector(".card-fb").textContent = ok ? "Верно" : `Правильно: ${c.word}`;
-      if (ok) speakEnglish(c.word);
-      await wait(ok ? 650 : 1400);
-      body.querySelector(".quiz-step")?.classList.add("leave");
-      await wait(160);
-      i++; busy = false;
-      if (i < deck.length) drawQuiz(true); else finish();
-    }));
-  };
-
-  const wordLine = list => list.map(w => `<li><b lang="en">${esc(w.word)}</b> <span>${esc(w.ru)}</span></li>`).join("");
-  const finish = () => {
-    i = deck.length;
-    progress();
-    const cards = mode === "cards";
-    const weak = cards ? learning : mistakes;
-    body.innerHTML = `
-      <div class="study-done">
-        <p class="eyebrow">${cards ? "Круг пройден" : "Проверка закончена"}</p>
-        <p class="portion-score">${cards
-          ? `Знаю <b>${known.length}</b> · ещё учу <b>${learning.length}</b>`
-          : `<b>${right}</b> из ${deck.length} верно`}</p>
-        ${weak.length ? `<div class="study-weak"><p class="hint-line">${cards ? "Стоит повторить" : "Ошибки"}</p><ul>${wordLine(weak)}</ul></div>` : ""}
-        <div class="row">
-          ${weak.length ? `<button class="btn" type="button" data-weak>Повторить ${weak.length} ${plural(weak.length, "слово", "слова", "слов")}</button>` : ""}
-          <button class="btn ${weak.length ? "ghost" : ""}" type="button" data-again>Всё ещё раз</button>
-          <button class="btn quiet" type="button" data-done>Закрыть</button>
-        </div>
-      </div>`;
-    body.querySelector("[data-done]").addEventListener("click", close);
-    body.querySelector("[data-again]").addEventListener("click", () => restart(shuffle(words)));
-    body.querySelector("[data-weak]")?.addEventListener("click", () => restart(shuffle(weak)));
-    body.querySelector("[data-weak], [data-again]").focus({ preventScroll: true });
-  };
-
-  const restart = list => {
-    deck = list; i = 0; known = []; learning = []; right = 0; mistakes = []; busy = false;
-    stopSpeech();
-    mode === "cards" ? drawCard() : drawQuiz();
-  };
-  restart(deck);
 }
 
 /* ---------- chat ---------- */
@@ -2544,6 +2044,11 @@ async function route() {
 auth.onChange(event => {
   if (event === "SIGNED_OUT" && !loggingOut && app.querySelector("[data-logout]")) setTimeout(route, 0);
   if (event === "PASSWORD_RECOVERY" && !recovery) { recovery = true; setTimeout(route, 0); }
+});
+setupWords({
+  app, topbar, bindTopbar, removeFloating, handleError, toast, plural, reduced,
+  newScreen: () => ++screenToken, isScreen: t => t === screenToken,
+  icons: { search: SEARCH_ICON, trash: TRASH_ICON, close: CLOSE_ICON },
 });
 window.addEventListener("hashchange", route);
 route();
