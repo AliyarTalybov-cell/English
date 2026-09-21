@@ -12,10 +12,18 @@ export const onBusy = fn => { busyListeners.add(fn); return () => busyListeners.
 const setBusy = d => { inflight = Math.max(0, inflight + d); busyListeners.forEach(fn => fn(inflight > 0)); };
 const QUIET = /\/rpc\/(unread_count|word_result)\b|\/auth\/v1\/token/;
 const isQuiet = (url, opts) => QUIET.test(url) || (/\/rpc\/get_messages\b/.test(url) && /"p_after":\d/.test(String(opts?.body || "")));
+// A request on a bad mobile connection must not hang forever: cut it off so the page can say so and offer a retry.
+// Uploads get more time than ordinary queries.
+const timedFetch = (url, opts = {}) => {
+  if (!AbortSignal.timeout) return fetch(url, opts);
+  const timeout = AbortSignal.timeout(/\/storage\/v1\//.test(String(url)) ? 60000 : 20000);
+  const signal = !opts.signal ? timeout : AbortSignal.any ? AbortSignal.any([opts.signal, timeout]) : opts.signal;
+  return fetch(url, { ...opts, signal });
+};
 const trackedFetch = (url, opts) => {
-  if (isQuiet(String(url), opts)) return fetch(url, opts);
+  if (isQuiet(String(url), opts)) return timedFetch(url, opts);
   setBusy(1);
-  return fetch(url, opts).finally(() => setBusy(-1));
+  return timedFetch(url, opts).finally(() => setBusy(-1));
 };
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
@@ -42,7 +50,7 @@ const AUTH_MESSAGES = [
 export function authMessage(err) {
   const text = err?.message || "";
   for (const [re, msg] of AUTH_MESSAGES) if (re.test(text)) return msg;
-  if (/fetch|network/i.test(text)) return "Нет связи с сервером. Проверьте интернет.";
+  if (/fetch|network|timed? ?out|abort/i.test(text)) return "Нет связи с сервером. Проверьте интернет.";
   return "Не получилось. Попробуйте ещё раз.";
 }
 

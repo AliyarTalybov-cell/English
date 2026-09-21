@@ -1,3 +1,4 @@
+import "./fonts.css";
 import "./style.css";
 import { api, auth, avatar, roles, messages, profile, cache, authMessage, AuthRequired, onBusy } from "./api.js";
 import { mountLesson, setWordSaver, esc, sayButton } from "./engine.js";
