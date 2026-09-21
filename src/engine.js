@@ -1,7 +1,7 @@
 // Lesson trainer: theory + exercises with error diagnosis and a "my mistakes" review.
 // Lesson content comes from the database; progress is saved through the `save` callbacks.
 import { canSpeak, speakQueue, speakEnglish, stopSpeech, pauseSpeech, resumeSpeech, onPlayerChange, theoryQueue, languageRuns, getRate, setRate, listVoices, voiceId, currentVoice, setVoice } from "./speech.js";
-import { translate, isBasicWord } from "./translate.js";
+import { translate } from "./translate.js";
 
 const EXP = {"i'm":"i am","you're":"you are","we're":"we are","they're":"they are","he's":"he is","she's":"she is","it's":"it is","what's":"what is","where's":"where is","who's":"who is","how's":"how is","when's":"when is","that's":"that is","isn't":"is not","aren't":"are not","wasn't":"was not","weren't":"were not","don't":"do not","doesn't":"does not","haven't":"have not","hasn't":"has not","i've":"i have","you've":"you have","we've":"we have","they've":"they have","didn't":"did not","couldn't":"could not","won't":"will not","let's":"let us"};
 const norm = s => s.toLowerCase().replace(/[’‘`´]/g, "'").replace(/[.?!,;:]/g, " ").replace(/\s+/g, " ").trim().split(" ").map(w => EXP[w] || w).join(" ");
@@ -448,8 +448,8 @@ function showWordPop(target, hit) {
   wordPop.querySelector(".word-en").textContent = hit.word;
   wordPop.querySelector(".word-ru").textContent = hit.ru;
   const add = wordPop.querySelector(".word-add");
-  // Only words worth learning can be saved: «the» or «is» would just clutter the list.
-  add.hidden = !wordSaver || isBasicWord(wordPop.dataset.word) || /\s/.test(wordPop.dataset.word);
+  // Any word or phrase can be saved, «these» and «from» included.
+  add.hidden = !wordSaver;
   add.disabled = false; add.innerHTML = BOOKMARK; add.classList.remove("added");
   add.title = "Сохранить в мои слова"; add.setAttribute("aria-label", "Сохранить в мои слова");
   wordPop.classList.add("show");

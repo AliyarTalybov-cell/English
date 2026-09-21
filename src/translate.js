@@ -55,14 +55,4 @@ export function translate(word, nextWords = []) {
   return null;
 }
 
-// Service words: everybody meets them in every sentence, so there is no point in saving them
-// to «Мои слова» — that list is for words worth learning.
-const BASIC = new Set(`a an the i you he she it we they me him her us them my your his its our their mine yours
-am is are was were be been being do does did done have has had can could will would should may might must
-to of in on at for with from by about into over under as and or but so if not no yes this that these those
-there here what who where when why how which whose very too also just only now then today tomorrow yesterday
-more most some any all both each every other another same one two three four five six seven eight nine ten
-please thanks thank hello hi bye ok okay well little much many good bad big small new old`.split(/\s+/).filter(Boolean));
-export const isBasicWord = w => BASIC.has(String(w || "").toLowerCase().replace(/[’‘`´]/g, "'").trim());
-
 export const dictionarySize = () => Object.keys(DICT).length;
