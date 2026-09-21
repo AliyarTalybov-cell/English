@@ -178,4 +178,7 @@ export const CORE = {
   number: "число, номер", price: "цена", shower: "душ", gym: "спортзал", party: "вечеринка", sport: "спорт", tv: "телевизор",
   weather: "погода", sun: "солнце", rain: "дождь", snow: "снег", sunny: "солнечно", rainy: "дождливо", foggy: "туманно",
   grandchild: "внук, внучка", grandchildren: "внуки", back: "назад, обратно", "come back": "вернуться", lake: "озеро", pound: "фунт (деньги)",
+  hand: "рука (кисть)", sushi: "суши", classroom: "класс (комната)", dear: "дорогой, дорогая", tourist: "турист", pencil: "карандаш",
+  "we've": "we have — у нас есть", "they've": "they have — у них есть", rock: "рок (музыка); камень", zero: "ноль", tree: "дерево", trees: "деревья",
+  best: "лучший", comedy: "комедия", comedies: "комедии",
 };

@@ -409,38 +409,43 @@ function dictationPanel(sec) {
   return box;
 }
 
-/* ---------- «Текст на слух» at the end of a topic's practice ---------- */
-// Listen first and translate in your head; the English text and the translation open only when needed.
-function listenBlock(listen) {
+/* ---------- «Диалог на слух» at the end of a topic's practice ---------- */
+// Listen first and translate in your head; the text and the line-by-line translation open only when needed.
+function listenBlock({ scene, lines }) {
   const box = document.createElement("div");
   box.className = "topic-text";
-  const sentences = listen.en.match(/[^.!?]+[.!?]+/g)?.length || 1;
   box.innerHTML = `
-    <p class="recall-head">Текст на слух · ${sentences} ${plural(sentences, "предложение", "предложения", "предложений")}. Послушайте и переведите про себя</p>
-    ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-lt-play>▶ Послушать</button><button class="btn quiet" type="button" data-lt-slow>Медленнее</button></div>` : ""}
-    <details class="lt-more"${canSpeak() ? "" : " open"}>
-      <summary>Показать текст</summary>
-      <p class="lt-en">${esc(listen.en)}</p>
-      <details class="lt-more">
-        <summary>Показать перевод</summary>
-        <p class="lt-ru">${esc(listen.ru)}</p>
-      </details>
+    <div class="tt-head">
+      <p class="recall-head">Диалог на слух · послушайте и переведите про себя</p>
+      <p class="tt-scene">${esc(scene)}</p>
+    </div>
+    ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-tt-play>▶ Послушать</button><button class="btn quiet" type="button" data-tt-slow>Медленнее</button></div>` : ""}
+    <details class="tt-more"${canSpeak() ? "" : " open"}>
+      <summary class="tt-link">Показать текст</summary>
+      <ol class="tt-lines">${lines.map(([who, en, ru]) =>
+        `<li><span class="tt-who">${esc(who)}</span><span class="tt-say"><span class="tt-en">${esc(en)}</span><span class="tt-ru">${esc(ru)}</span></span></li>`).join("")}</ol>
+      <button type="button" class="tt-link" data-tt-ru aria-expanded="false">Показать перевод</button>
     </details>`;
-  box.querySelectorAll(".lt-more").forEach(d => d.addEventListener("toggle", e => {
-    if (e.target !== d) return;
-    const sum = d.querySelector(":scope > summary");
-    sum.textContent = sum.textContent.replace(/^(Показать|Скрыть)/, d.open ? "Скрыть" : "Показать");
-  }));
-  const play = box.querySelector("[data-lt-play]"), slow = box.querySelector("[data-lt-slow]");
+  const more = box.querySelector(".tt-more"), sum = more.querySelector("summary");
+  more.addEventListener("toggle", () => { sum.textContent = more.open ? "Скрыть текст" : "Показать текст"; });
+  const ruBtn = box.querySelector("[data-tt-ru]");
+  ruBtn.addEventListener("click", () => {
+    const on = box.classList.toggle("with-ru");
+    ruBtn.textContent = on ? "Скрыть перевод" : "Показать перевод";
+    ruBtn.setAttribute("aria-expanded", on);
+  });
+  const play = box.querySelector("[data-tt-play]"), slow = box.querySelector("[data-tt-slow]");
   if (play) {
-    const idle = () => { play.textContent = "▶ Послушать"; box.classList.remove("playing"); };
+    const items = [...box.querySelectorAll(".tt-lines li")];
+    const mark = el => items.forEach(li => li.classList.toggle("now", li === el));
+    const idle = () => { play.textContent = "▶ Послушать"; box.classList.remove("playing"); mark(null); };
     const start = slower => {
-      if (box.classList.contains("playing")) { stopSpeech(); return; }
+      stopSpeech(); // the previous queue reports its stop now, not after this one has started
       box.classList.add("playing"); play.textContent = "■ Стоп";
-      speakEnglish(listen.en, { slower, onStop: idle });
+      speakQueue(lines.map(([, en], i) => ({ lang: "en", text: en, el: items[i] })), { slower, onPart: mark, onStop: idle });
     };
-    play.addEventListener("click", () => start(false));
-    slow.addEventListener("click", () => { if (box.classList.contains("playing")) stopSpeech(); start(true); });
+    play.addEventListener("click", () => box.classList.contains("playing") ? stopSpeech() : start(false));
+    slow.addEventListener("click", () => start(true));
   }
   return box;
 }

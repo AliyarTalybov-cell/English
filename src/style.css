@@ -951,6 +951,10 @@ html.no-scroll{overflow:hidden}
 .portion-score{font-family:var(--display);font-size:22px;line-height:1.2}
 .portion-score b{color:var(--accent);font-size:28px;font-weight:600}
 .portion-done .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+/* score, then the practice blocks, then the way on: each group gets its own air */
+.portion-done>.muted:empty{display:none}
+.portion-done>.recall,.portion-done>.topic-text{margin-top:8px}
+.portion-done>.row{margin-top:12px}
 .portion-done .btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 @media (max-width:480px){.portion-done .btn{width:100%}}
 @media (prefers-reduced-motion: reduce){.portion-done{animation:none}}
@@ -984,7 +988,7 @@ html.no-scroll{overflow:hidden}
 @media (prefers-reduced-motion: reduce){.dictation{animation:none}}
 
 /* ---------- «Закрепим»: write the sentence you just assembled ---------- */
-.recall{display:grid;gap:8px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);animation:dropIn var(--t2) var(--ease-out)}
+.recall{display:grid;gap:8px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);animation:dropIn var(--t2) var(--ease-out)}
 .recall-head{font-size:14px;color:var(--muted)}
 .recall-cue{font-size:16px;line-height:1.45}
 .recall .row{display:flex;flex-wrap:wrap;gap:8px}
@@ -997,16 +1001,22 @@ html.no-scroll{overflow:hidden}
 @media (max-width:480px){.recall .row .btn{flex:1}}
 @media (prefers-reduced-motion: reduce){.recall{animation:none}}
 
-/* ---------- «Текст на слух»: listen, then open the text and the translation ---------- */
-.topic-text{display:grid;gap:10px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+/* ---------- «Диалог на слух»: listen, then open the text and the translation ---------- */
+.topic-text{display:grid;gap:12px;padding:14px 16px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.tt-head{display:grid;gap:2px}
+.tt-scene{font-size:16px;font-weight:500}
 .topic-text .row{display:flex;flex-wrap:wrap;gap:8px}
-.lt-more>summary{width:max-content;max-width:100%;cursor:pointer;list-style:none;font-size:14px;color:var(--muted);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent);text-underline-offset:3px;transition:color var(--t2) ease}
-.lt-more>summary::-webkit-details-marker{display:none}
-.lt-more>summary:hover{color:var(--ink)}
-.lt-more[open]>summary{margin-bottom:8px}
-.lt-en{font-size:16px;line-height:1.55}
-.lt-ru{font-size:15px;line-height:1.55;color:var(--muted)}
-.lt-more .lt-more{margin-top:10px}
+.tt-link{display:block;width:max-content;max-width:100%;padding:0;border:0;background:none;cursor:pointer;list-style:none;font:inherit;font-size:14px;color:var(--muted);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent);text-underline-offset:3px;transition:color var(--t2) ease}
+.tt-link::-webkit-details-marker{display:none}
+.tt-link:hover{color:var(--ink)}
+.tt-lines{list-style:none;margin:14px 0;padding:0;display:grid;grid-template-columns:max-content 1fr;align-items:baseline;gap:8px 14px}
+.tt-lines li{display:contents}
+.tt-who{font-size:13px;color:var(--muted)}
+.tt-say{display:grid;gap:2px}
+.tt-en{font-size:16px;line-height:1.5;transition:color var(--t2) ease}
+.tt-lines li.now .tt-en{color:var(--accent)}
+.tt-ru{display:none;font-size:14px;line-height:1.45;color:var(--muted)}
+.with-ru .tt-ru{display:block}
 @media (max-width:480px){.topic-text .row .btn{flex:1}}
 
 

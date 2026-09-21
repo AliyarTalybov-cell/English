@@ -20,7 +20,9 @@ for (const f of files) {
   for (const id of Object.keys(listen)) {
     const s = L.sections.find(x => x.id === id);
     if (!s) { problems.push(`listen.mjs: ${L.slug} has no section ${id}`); continue; }
-    if (!listen[id].en || !listen[id].ru) problems.push(`listen.mjs: ${L.slug} › ${id} needs both en and ru`);
+    const { scene, lines } = listen[id];
+    if (!scene || !Array.isArray(lines) || lines.length < 4) problems.push(`listen.mjs: ${L.slug} › ${id} needs a scene and at least 4 lines`);
+    else lines.forEach((l, i) => { if (l.length !== 3 || l.some(x => !x)) problems.push(`listen.mjs: ${L.slug} › ${id} › line ${i + 1} needs speaker, English and Russian`); });
     s.listen = listen[id];
   }
   const content = { ...(L.steps === false ? { steps: false } : {}), sections: L.sections };
@@ -93,7 +95,7 @@ for (const f of files) {
   const texts = [];
   for (const s of L.sections) {
     texts.push(String(s.theory || "").replace(/<[^>]+>/g, " "));
-    if (s.listen) texts.push(s.listen.en);
+    if (s.listen) texts.push(...s.listen.lines.map(l => l[1]));
     for (const g of s.groups || []) for (const it of g.items || []) {
       for (const k of ["q", "ex", "p", "h"]) if (typeof it[k] === "string") texts.push(it[k]);
       if (Array.isArray(it.a)) texts.push(...it.a); else if (typeof it.a === "string") texts.push(it.a);
