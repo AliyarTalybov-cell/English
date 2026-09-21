@@ -550,7 +550,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         </div>
         <h1>${esc(lesson.title)}</h1>
         ${lesson.subtitle ? `<p class="lead">${esc(lesson.subtitle)}</p>` : ""}
-        <p class="tap-tip">Нажмите на английское слово в объяснении — покажем перевод.</p>
+        <p class="tap-tip">Нажмите на любое английское слово — покажем перевод.</p>
         ${Object.keys(progress).length || lesson.content.steps === false ? "" : `<ol class="steps">
           <li><b>1</b>Прочитайте объяснение темы</li>
           <li><b>2</b>Посмотрите разобранные примеры</li>
@@ -583,6 +583,8 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
   // choosing from three buttons is easier than recalling the words yourself.
   let recallPool = [];
   const $ = sel => root.querySelector(sel);
+  // Tap-to-translate works across the whole lesson: explanation, tasks, feedback and «Мои ошибки».
+  enableTapTranslate($("main.wrap"));
   const topics = $("[data-topics]");
 
   let activeId = S[0]?.id;
@@ -745,7 +747,6 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     };
     if (sec.id === openId) renderPart();
     else showOpener();
-    enableTapTranslate(el.querySelector(".theory"));
     const idx = S.indexOf(sec);
     const next = S[idx + 1];
     const nextBtn = document.createElement("button");
