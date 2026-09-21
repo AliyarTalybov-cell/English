@@ -1853,7 +1853,10 @@ async function renderChat(withId) {
 
   if (!form) return;
   const input = form.querySelector("textarea"), send = form.querySelector(".send-btn"), note = form.querySelector("[data-note]");
-  const grow = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; };
+  // The composer is pinned to the bottom, so when it gets taller (a photo, a longer message)
+  // the chat keeps its last messages in view instead of sliding them under it.
+  const keepBottom = change => { const stick = nearBottom(); change(); if (stick) toBottom(false); };
+  const grow = () => keepBottom(() => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; });
   // Attached photo: compressed right away, previewed above the field, uploaded on send.
   const attach = form.querySelector("[data-attach]"), preview = form.querySelector("[data-preview]"), previewImg = form.querySelector("[data-preview-img]");
   let photo = null; // { blob, url }
@@ -1866,8 +1869,11 @@ async function renderChat(withId) {
     try {
       const blob = await chatJpeg(file);
       photo = { blob, url: URL.createObjectURL(blob) };
+      const stick = nearBottom();
       previewImg.src = photo.url;
       preview.hidden = false;
+      await previewImg.decode().catch(() => {}); // the preview has its real height only once the image is decoded
+      if (stick) toBottom(false);
       refresh();
       input.focus({ preventScroll: true });
     } catch { toast("Не получилось открыть это фото. Попробуйте другое."); }
