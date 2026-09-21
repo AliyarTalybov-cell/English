@@ -413,7 +413,7 @@ function dictationPanel(sec) {
 // Listen first and translate in your head; the English text and the translation open only when needed.
 function listenBlock(listen) {
   const box = document.createElement("div");
-  box.className = "listen-text";
+  box.className = "topic-text";
   const sentences = listen.en.match(/[^.!?]+[.!?]+/g)?.length || 1;
   box.innerHTML = `
     <p class="recall-head">Текст на слух · ${sentences} ${plural(sentences, "предложение", "предложения", "предложений")}. Послушайте и переведите про себя</p>

@@ -998,8 +998,8 @@ html.no-scroll{overflow:hidden}
 @media (prefers-reduced-motion: reduce){.recall{animation:none}}
 
 /* ---------- «Текст на слух»: listen, then open the text and the translation ---------- */
-.listen-text{display:grid;gap:10px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
-.listen-text .row{display:flex;flex-wrap:wrap;gap:8px}
+.topic-text{display:grid;gap:10px;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.topic-text .row{display:flex;flex-wrap:wrap;gap:8px}
 .lt-more>summary{width:max-content;max-width:100%;cursor:pointer;list-style:none;font-size:14px;color:var(--muted);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent);text-underline-offset:3px;transition:color var(--t2) ease}
 .lt-more>summary::-webkit-details-marker{display:none}
 .lt-more>summary:hover{color:var(--ink)}
@@ -1007,7 +1007,7 @@ html.no-scroll{overflow:hidden}
 .lt-en{font-size:16px;line-height:1.55}
 .lt-ru{font-size:15px;line-height:1.55;color:var(--muted)}
 .lt-more .lt-more{margin-top:10px}
-@media (max-width:480px){.listen-text .row .btn{flex:1}}
+@media (max-width:480px){.topic-text .row .btn{flex:1}}
 
 
 /* ---------- my words ---------- */
