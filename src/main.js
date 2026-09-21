@@ -1,5 +1,5 @@
 import "./style.css";
-import { api, auth, avatar, roles, messages, profile, cache, authMessage, AuthRequired } from "./api.js";
+import { api, auth, avatar, roles, messages, profile, cache, authMessage, AuthRequired, onBusy } from "./api.js";
 import { mountLesson, setWordSaver, esc, sayButton } from "./engine.js";
 import { getTheme, applyTheme, themeControlHtml, bindThemeControl } from "./theme.js";
 import { COURSE, LESSON_GOALS, LESSON_LABELS, LEVEL, AUTHOR } from "./course.js";
@@ -2096,6 +2096,17 @@ auth.onChange(event => {
   if (event === "SIGNED_OUT" && !loggingOut && app.querySelector("[data-logout]")) setTimeout(route, 0);
   if (event === "PASSWORD_RECOVERY" && !recovery) { recovery = true; setTimeout(route, 0); }
 });
+// Thin line at the top while the server is answering; it shows up only after 300 ms, so quick requests stay invisible.
+const netbar = document.createElement("div");
+netbar.className = "netbar"; netbar.setAttribute("aria-hidden", "true");
+document.body.appendChild(netbar);
+let netTimer = 0;
+onBusy(busy => {
+  clearTimeout(netTimer);
+  if (busy) { if (!netbar.classList.contains("on")) netTimer = setTimeout(() => netbar.classList.add("on"), 300); }
+  else netbar.classList.remove("on");
+});
+
 setupWords({
   app, topbar, bindTopbar, removeFloating, handleError, toast, plural, reduced,
   newScreen: () => ++screenToken, isScreen: t => t === screenToken,

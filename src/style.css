@@ -344,7 +344,18 @@ button.chip{border:0}
 .btn,.opt,.chip,.tile,.next-topic,.to-practice,.theme-btn,.tabs button,.w,.pw-toggle{transition:transform var(--t1) ease,background-color var(--t2) ease,border-color var(--t2) ease,color var(--t2) ease,box-shadow var(--t2) ease,opacity var(--t2) ease}
 .btn:active:not(:disabled),.opt:active:not(:disabled),.chip:active,.tile:active,.next-topic:active,.to-practice:active,.theme-btn:active,.w:active:not(:disabled){transform:scale(.97)}
 .btn.loading{position:relative;color:transparent!important}
-.btn.loading::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid var(--accent-ink);border-right-color:transparent;animation:spin .7s linear infinite}
+.btn{--spin:var(--accent-ink)}
+.btn.ghost{--spin:var(--accent)}
+.btn.quiet{--spin:var(--muted)}
+.btn.warn{--spin:var(--bad)}
+.btn.loading::after{content:"";position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid var(--spin);border-right-color:transparent;animation:spin .7s linear infinite}
+/* global activity line under the top edge */
+.netbar{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:200;height:2px;overflow:hidden;pointer-events:none;opacity:0;transition:opacity var(--t2) ease}
+.netbar.on{opacity:1}
+.netbar::before{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;background:var(--accent);border-radius:2px;transform:translateX(-100%);animation:netbar 1.1s var(--ease) infinite}
+.netbar:not(.on)::before{animation-play-state:paused}
+@keyframes netbar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@media (prefers-reduced-motion: reduce){.netbar::before{animation:none;transform:none;width:100%;opacity:.6}}
 
 /* home */
 @media (hover:hover){
@@ -742,7 +753,6 @@ a.student-row:active{transform:scale(.99)}
 .users>li.rise-in{animation:rise var(--t3) var(--ease-out) both;animation-delay:calc(var(--i,0) * 45ms)}
 .more-line{display:flex;justify-content:center;padding-top:16px}
 .more-line .btn{min-width:200px}
-.more-line .btn.loading::after{border-color:var(--muted);border-right-color:transparent}
 @media (max-width:480px){.more-line .btn{width:100%}}
 
 /* ---------- chat ---------- */

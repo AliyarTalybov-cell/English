@@ -4,9 +4,24 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = "https://njxhuyalekejwgvimenx.supabase.co";
 const SUPABASE_KEY = "sb_publishable_YwSQ988gis_UrwTG0VXPAg_4LDh9-JT";
 
+// Network activity for the thin progress line at the top of the page. Background polling
+// (new messages, the unread counter, training results) does not count, so the line never blinks on its own.
+let inflight = 0;
+const busyListeners = new Set();
+export const onBusy = fn => { busyListeners.add(fn); return () => busyListeners.delete(fn); };
+const setBusy = d => { inflight = Math.max(0, inflight + d); busyListeners.forEach(fn => fn(inflight > 0)); };
+const QUIET = /\/rpc\/(unread_count|word_result)\b|\/auth\/v1\/token/;
+const isQuiet = (url, opts) => QUIET.test(url) || (/\/rpc\/get_messages\b/.test(url) && /"p_after":\d/.test(String(opts?.body || "")));
+const trackedFetch = (url, opts) => {
+  if (isQuiet(String(url), opts)) return fetch(url, opts);
+  setBusy(1);
+  return fetch(url, opts).finally(() => setBusy(-1));
+};
+
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   // implicit flow: the recovery link carries tokens in the URL, so it works on any device
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit", storageKey: "english-auth" },
+  global: { fetch: trackedFetch },
 });
 
 export class AuthRequired extends Error {}
