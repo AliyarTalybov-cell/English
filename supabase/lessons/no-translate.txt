@@ -1,0 +1,40 @@
+# Слова, у которых перевода быть не должно. Проверка покрытия их пропускает.
+# Намеренно неверные написания из блоков «частая ошибка» и из вариантов ответа:
+fourty
+hairbrash
+workeds
+threeteen
+fiveteen
+displeasant
+nopleasant
+sunglass
+sisters's
+polica
+laying
+homebody
+amn't
+# Задания «переставьте буквы»:
+supre
+fracs
+wearset
+slogev
+ringsear
+klecenca
+# Обрывки слов из таблиц с окончаниями и из разметки:
+teen
+tion
+ches
+driv
+twen
+egian
+ambi
+hairb
+nbsp
+ied
+thir
+fif
+ish
+ese
+cetera
+parents'
+kira
