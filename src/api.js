@@ -117,6 +117,20 @@ export const roles = {
     check(error);
     return data || { total: 0, items: [] };
   },
+  studentWords: async userId => {
+    const { data, error } = await sb.rpc("teacher_student_words", { p_user: userId });
+    check(error);
+    return data || { total: 0, learned: 0, items: [] };
+  },
+  addStudentWords: async (userId, items) => {
+    const { data, error } = await sb.rpc("teacher_add_words", { p_user: userId, p_items: items });
+    check(error);
+    return data || { added: 0, updated: 0, skipped: 0 };
+  },
+  removeStudentWord: async (userId, word) => {
+    const { error } = await sb.rpc("teacher_remove_word", { p_user: userId, p_word: word });
+    check(error);
+  },
   studentStats: async userId => {
     const { data, error } = await sb.rpc("teacher_student_stats", { p_user: userId });
     check(error);

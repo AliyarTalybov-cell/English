@@ -1018,6 +1018,22 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .words-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:-2px;font-size:12px;color:var(--muted)}
 .words-legend span{display:inline-flex;align-items:center;gap:6px}
 .words-empty{padding-block:28px}
+/* teacher: words for a student */
+.sw-add{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:4px}
+.sw-add .inp{min-height:46px;background:var(--surface)}
+.sw-hint{font-size:13px;color:var(--muted);line-height:1.5}
+.sw-hint .inline-link{font-size:13px;min-height:28px;padding:0 2px}
+.sw-bulk{display:grid;gap:8px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);animation:dropIn var(--t2) var(--ease-out)}
+.sw-bulk[hidden]{display:none}
+.sw-bulk-label{font-size:14px;color:var(--muted)}
+.sw-bulk textarea{resize:vertical;min-height:130px;font-family:var(--mono);font-size:14px;line-height:1.6;background:var(--bg)}
+.sw-parse{display:grid;gap:2px;font-size:13px;color:var(--muted)}
+.sw-parse:empty{display:none}
+.sw-parse b{color:var(--accent)}
+.sw-bulk .acct-actions{max-width:360px;margin-top:0}
+.sw-list{margin-top:4px}
+@media (max-width:560px){.sw-add{grid-template-columns:1fr 1fr}.sw-add .btn{grid-column:1 / -1}}
+@media (prefers-reduced-motion: reduce){.sw-bulk{animation:none}}
 .words-clear{display:flex;justify-content:center;margin-top:28px}
 .words-clear-link{color:color-mix(in srgb,var(--bad) 75%,var(--muted));text-decoration-color:color-mix(in srgb,var(--bad) 35%,transparent)}
 .words-confirm{width:100%;max-width:360px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface);animation:popIn var(--t2) var(--ease-out)}

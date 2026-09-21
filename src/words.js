@@ -1,5 +1,6 @@
 // «Мои слова»: the saved-words dictionary, the study mode (cards, choice, typing) and the words line in «Ваш прогресс».
-import { api, cache, AuthRequired } from "./api.js";
+import { api, roles, cache, AuthRequired } from "./api.js";
+import { translate } from "./translate.js";
 import { esc, sayButton } from "./engine.js";
 import { stopSpeech, speakEnglish } from "./speech.js";
 
@@ -77,6 +78,8 @@ export async function renderWords() {
     if (v.filter === "due") list = list.filter(isDue);
     if (v.filter === "learned") list = list.filter(isLearned);
     if (q) list = list.filter(w => w.word.toLowerCase().includes(q) || w.ru.toLowerCase().includes(q));
+    // Words from the teacher stay on top until the first training answer.
+    if (v.filter !== "due") list = [...list.filter(w => w.from_teacher), ...list.filter(w => !w.from_teacher)];
     if (v.filter === "due") list = list.slice().sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
     return list;
   };
@@ -284,6 +287,7 @@ export async function renderWords() {
 }
 
 function addedGroup(w) {
+  if (w.from_teacher) return "От учителя";
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const t = new Date(w.added_at).getTime();
   if (t >= start.getTime()) return "Сегодня";
@@ -374,7 +378,7 @@ export async function startWordTraining() {
       const items = (saved.items || []).map(w => {
         if (!counted.has(w.word)) return w;
         const streak = !counted.get(w.word) ? 0 : wrongFirst.has(w.word) ? 1 : w.streak + 1;
-        return { ...w, streak, due_at: new Date(Date.now() + REVIEW_GAP[Math.min(streak, 5)] * DAY).toISOString() };
+        return { ...w, streak, from_teacher: false, due_at: new Date(Date.now() + REVIEW_GAP[Math.min(streak, 5)] * DAY).toISOString() };
       });
       cache.set("words", { ...saved, items, due: items.filter(isDue).length });
     }
@@ -624,3 +628,161 @@ export async function startWordTraining() {
   restart(deck);
 }
 
+
+/* ---------- teacher: words for a student (on the student's page) ---------- */
+
+// Translation from the course dictionary for a word or a short phrase; "" when it is not there.
+function lookupRu(text) {
+  const parts = text.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  const hit = translate(parts[0], parts.slice(1));
+  if (!hit) return "";
+  const found = hit.word.split(" → ")[0];
+  if (parts.length > 1 && found !== parts.join(" ")) return "";
+  return hit.ru;
+}
+
+// One line of a pasted list: «kitchen — кухня», «kitchen - кухня», «kitchen: кухня», «kitchen кухня» or just «kitchen».
+const LATIN = /^[a-z][a-z' .-]*$/i;
+function parseLine(line) {
+  const t = line.trim().replace(/^[-•*\d.)\s]+/, "");
+  if (!t) return null;
+  let word = t, ru = "";
+  const sep = t.match(/\s+[—–-]\s+|\s*[—–:=\t]\s*/);
+  if (sep) { word = t.slice(0, sep.index); ru = t.slice(sep.index + sep[0].length); }
+  else {
+    const m = t.match(/^([a-z][a-z' .-]*?)\s+([а-яё].*)$/i);
+    if (m) { word = m[1]; ru = m[2]; }
+  }
+  word = word.trim().toLowerCase().replace(/\s+/g, " ");
+  ru = ru.trim();
+  if (!LATIN.test(word) || word.length > 60) return { line: t, bad: true };
+  const auto = !ru;
+  if (auto) ru = lookupRu(word);
+  return ru ? { word, ru: ru.slice(0, 200), auto } : { line: t, word, missing: true };
+}
+
+export function mountStudentWords(box, userId) {
+  let data = { total: 0, learned: 0, items: [] }, showAll = false;
+  box.innerHTML = `
+    <p class="eyebrow">Словарь</p>
+    <h2>Слова ученика</h2>
+    <p class="block-note" data-sw-count>Загружаю…</p>
+    <form class="sw-add" data-sw-form autocomplete="off">
+      <label class="visually-hidden" for="sw-word">Слово по-английски</label>
+      <input class="inp" id="sw-word" lang="en" placeholder="Слово" autocapitalize="off" spellcheck="false" enterkeyhint="next" maxlength="60" data-sw-word>
+      <label class="visually-hidden" for="sw-ru">Перевод</label>
+      <input class="inp" id="sw-ru" placeholder="Перевод" enterkeyhint="done" maxlength="200" data-sw-ru>
+      <button class="btn" type="submit">Добавить</button>
+    </form>
+    <p class="sw-hint">Перевод подставляется сам, если слово есть в словаре курса, его можно поправить. Слова сразу появятся у ученика в «Моих словах». <button type="button" class="inline-link" data-sw-bulk-open>Вставить списком</button></p>
+    <div class="sw-bulk" data-sw-bulk hidden>
+      <label class="sw-bulk-label" for="sw-list">По слову на строку: «kitchen — кухня». Без перевода — подставлю из словаря.</label>
+      <textarea class="inp" id="sw-list" rows="6" spellcheck="false" placeholder="kitchen — кухня&#10;look after — присматривать&#10;umbrella" data-sw-text></textarea>
+      <p class="sw-parse" aria-live="polite" data-sw-parse></p>
+      <div class="acct-actions"><button class="btn" type="button" data-sw-bulk-add disabled>Добавить</button><button class="btn quiet" type="button" data-sw-bulk-close>Отмена</button></div>
+    </div>
+    <ul class="words-list sw-list" data-sw-list></ul>
+    <div class="more-line"><button type="button" class="btn quiet" data-sw-more hidden></button></div>`;
+  const $ = sel => box.querySelector(sel);
+  const form = $("[data-sw-form]"), wordIn = $("[data-sw-word]"), ruIn = $("[data-sw-ru]");
+  const list = $("[data-sw-list]"), more = $("[data-sw-more]"), count = $("[data-sw-count]");
+
+  const draw = (fresh = []) => {
+    count.textContent = data.total
+      ? `${data.total} ${ui.plural(data.total, "слово", "слова", "слов")} · выучено ${data.learned}`
+      : "Пока пусто. Добавьте первые слова — ученик увидит их в «Моих словах» и сможет тренировать.";
+    const items = showAll ? data.items : data.items.slice(0, 10);
+    list.innerHTML = items.map(w => {
+      const mark = isDue(w) ? `<i class="word-dot"></i>` : isLearned(w) ? `<i class="word-tick">${CHECK_ICON}</i>` : "";
+      return `<li class="word-row${fresh.includes(w.word) ? " in" : ""}">
+        <div class="word-main" title="${wordStatus(w)}"><b lang="en">${esc(w.word)}</b><span>${esc(w.ru)}</span><span class="visually-hidden">, ${wordStatus(w)}</span></div>
+        <span class="word-mark" aria-hidden="true">${mark}</span>
+        <button type="button" class="icon-btn quiet danger" aria-label="Удалить слово ${esc(w.word)} у ученика" title="Удалить у ученика" data-sw-remove="${esc(w.word)}">${ui.icons.trash}</button>
+      </li>`;
+    }).join("");
+    more.hidden = data.items.length <= 10;
+    more.textContent = showAll ? "Свернуть" : `Показать все (${data.items.length})`;
+  };
+  const load = async (fresh = []) => {
+    try { data = await roles.studentWords(userId); draw(fresh); }
+    catch (err) { if (err instanceof AuthRequired) { ui.handleError(err); return; } count.textContent = "Не удалось загрузить слова ученика."; }
+  };
+  load();
+
+  const send = async (items, btn) => {
+    btn.disabled = true; btn.classList.add("loading");
+    try {
+      const r = await roles.addStudentWords(userId, items);
+      const parts = [];
+      if (r.added) parts.push(`добавлено ${r.added} ${ui.plural(r.added, "слово", "слова", "слов")}`);
+      if (r.updated) parts.push(`у ${r.updated} обновлён перевод`);
+      if (r.skipped) parts.push(`пропущено ${r.skipped}`);
+      ui.toast(parts.length ? parts.join(", ").replace(/^./, c => c.toUpperCase()) : "Ничего не добавлено");
+      await load(items.map(x => x.word.trim().toLowerCase()));
+      return true;
+    } catch (err) {
+      if (err instanceof AuthRequired) { ui.handleError(err); return false; }
+      ui.toast("Не удалось добавить. Попробуйте ещё раз.");
+      return false;
+    } finally { btn.disabled = false; btn.classList.remove("loading"); }
+  };
+
+  // One by one: the translation fills in from the dictionary while it is untouched; Enter adds and goes back to the word.
+  let ruAuto = true;
+  wordIn.addEventListener("input", () => { if (ruAuto) ruIn.value = lookupRu(wordIn.value); });
+  ruIn.addEventListener("input", () => { ruAuto = !ruIn.value; });
+  wordIn.addEventListener("keydown", e => { if (e.key === "Enter" && !ruIn.value.trim()) { e.preventDefault(); ruIn.focus(); } });
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const word = wordIn.value.trim().toLowerCase().replace(/\s+/g, " "), ru = ruIn.value.trim();
+    if (!LATIN.test(word)) { ui.toast("Введите слово латиницей, например kitchen."); wordIn.focus(); return; }
+    if (!ru) { ruIn.focus(); return; }
+    if (await send([{ word, ru }], form.querySelector("[type=submit]"))) {
+      wordIn.value = ""; ruIn.value = ""; ruAuto = true;
+      wordIn.focus();
+    }
+  });
+
+  // A pasted list: parsed as you type, with a short summary of what will be added and what is skipped.
+  const bulk = $("[data-sw-bulk]"), text = $("[data-sw-text]"), parseOut = $("[data-sw-parse]"), bulkAdd = $("[data-sw-bulk-add]");
+  let parsed = [];
+  const reparse = () => {
+    const rows = text.value.split(/\r?\n/).map(parseLine).filter(Boolean);
+    const seen = new Set();
+    parsed = rows.filter(r => r.ru && !seen.has(r.word) && seen.add(r.word)).slice(0, 200);
+    const missing = rows.filter(r => r.missing).map(r => r.word), bad = rows.filter(r => r.bad).map(r => r.line);
+    const lines = [];
+    if (parsed.length) lines.push(`Готово к добавлению: <b>${parsed.length}</b> ${ui.plural(parsed.length, "слово", "слова", "слов")}${parsed.some(r => r.auto) ? `, перевод из словаря у ${parsed.filter(r => r.auto).length}` : ""}.`);
+    if (missing.length) lines.push(`Нет перевода, допишите через тире: ${missing.map(esc).join(", ")}.`);
+    if (bad.length) lines.push(`Не похоже на английское слово: ${bad.slice(0, 5).map(esc).join(", ")}${bad.length > 5 ? "…" : ""}.`);
+    parseOut.innerHTML = lines.map(l => `<span>${l}</span>`).join("");
+    bulkAdd.disabled = !parsed.length;
+    bulkAdd.textContent = parsed.length ? `Добавить ${parsed.length} ${ui.plural(parsed.length, "слово", "слова", "слов")}` : "Добавить";
+  };
+  text.addEventListener("input", reparse);
+  $("[data-sw-bulk-open]").addEventListener("click", () => { bulk.hidden = false; text.focus(); });
+  $("[data-sw-bulk-close]").addEventListener("click", () => { bulk.hidden = true; });
+  bulkAdd.addEventListener("click", async () => {
+    if (!parsed.length) return;
+    if (await send(parsed.map(({ word, ru }) => ({ word, ru })), bulkAdd)) { text.value = ""; reparse(); bulk.hidden = true; }
+  });
+
+  more.addEventListener("click", () => { showAll = !showAll; draw(); });
+  list.addEventListener("click", async e => {
+    const del = e.target.closest("[data-sw-remove]");
+    if (!del) return;
+    const li = del.closest("li"), word = del.dataset.swRemove;
+    del.disabled = true;
+    try {
+      await roles.removeStudentWord(userId, word);
+      const gone = () => { data = { ...data, total: data.total - 1, learned: data.learned - (data.items.find(w => w.word === word)?.streak >= 1 ? 1 : 0), items: data.items.filter(w => w.word !== word) }; draw(); };
+      if (ui.reduced()) gone(); else { li.style.height = li.offsetHeight + "px"; li.classList.add("leaving"); setTimeout(gone, 260); }
+      ui.toast(`Слово «${word}» удалено у ученика`);
+    } catch (err) {
+      if (err instanceof AuthRequired) { ui.handleError(err); return; }
+      del.disabled = false;
+      ui.toast("Не удалось удалить. Попробуйте ещё раз.");
+    }
+  });
+}

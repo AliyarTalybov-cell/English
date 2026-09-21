@@ -4,7 +4,7 @@ import { mountLesson, setWordSaver, esc, sayButton } from "./engine.js";
 import { getTheme, applyTheme, themeControlHtml, bindThemeControl } from "./theme.js";
 import { COURSE, LESSON_GOALS, LESSON_LABELS, LEVEL, AUTHOR } from "./course.js";
 import { stopSpeech } from "./speech.js";
-import { setupWords, renderWords, wordsNote, fillWordsLine } from "./words.js";
+import { setupWords, renderWords, wordsNote, fillWordsLine, mountStudentWords } from "./words.js";
 
 applyTheme(getTheme());
 // The word popup in lessons can save a word to «Мои слова».
@@ -1453,6 +1453,8 @@ async function renderStudent(id) {
 
       <div style="margin-top:24px">${progressSummary({ done, total, firstTry, mistakes, words: wordsNote({ total: st.words_total, learned: st.words_learned }) })}</div>
 
+      <section class="card-block student-words" aria-label="Слова ученика" data-student-words></section>
+
       ${weakAll.length ? `<section class="card-block">
         <p class="eyebrow">Слабые места</p>
         <h2>Стоит подтянуть</h2>
@@ -1477,6 +1479,7 @@ async function renderStudent(id) {
     </main>`;
   bindTopbar();
   const main = app.querySelector("main");
+  mountStudentWords(main.querySelector("[data-student-words]"), id);
   stagger(main.querySelector(".summary"));
   countUp(main);
   requestAnimationFrame(() => requestAnimationFrame(() => {
