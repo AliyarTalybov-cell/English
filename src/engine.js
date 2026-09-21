@@ -409,6 +409,42 @@ function dictationPanel(sec) {
   return box;
 }
 
+/* ---------- «Текст на слух» at the end of a topic's practice ---------- */
+// Listen first and translate in your head; the English text and the translation open only when needed.
+function listenBlock(listen) {
+  const box = document.createElement("div");
+  box.className = "listen-text";
+  const sentences = listen.en.match(/[^.!?]+[.!?]+/g)?.length || 1;
+  box.innerHTML = `
+    <p class="recall-head">Текст на слух · ${sentences} ${plural(sentences, "предложение", "предложения", "предложений")}. Послушайте и переведите про себя</p>
+    ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-lt-play>▶ Послушать</button><button class="btn quiet" type="button" data-lt-slow>Медленнее</button></div>` : ""}
+    <details class="lt-more"${canSpeak() ? "" : " open"}>
+      <summary>Показать текст</summary>
+      <p class="lt-en">${esc(listen.en)}</p>
+      <details class="lt-more">
+        <summary>Показать перевод</summary>
+        <p class="lt-ru">${esc(listen.ru)}</p>
+      </details>
+    </details>`;
+  box.querySelectorAll(".lt-more").forEach(d => d.addEventListener("toggle", e => {
+    if (e.target !== d) return;
+    const sum = d.querySelector(":scope > summary");
+    sum.textContent = sum.textContent.replace(/^(Показать|Скрыть)/, d.open ? "Скрыть" : "Показать");
+  }));
+  const play = box.querySelector("[data-lt-play]"), slow = box.querySelector("[data-lt-slow]");
+  if (play) {
+    const idle = () => { play.textContent = "▶ Послушать"; box.classList.remove("playing"); };
+    const start = slower => {
+      if (box.classList.contains("playing")) { stopSpeech(); return; }
+      box.classList.add("playing"); play.textContent = "■ Стоп";
+      speakEnglish(listen.en, { slower, onStop: idle });
+    };
+    play.addEventListener("click", () => start(false));
+    slow.addEventListener("click", () => { if (box.classList.contains("playing")) stopSpeech(); start(true); });
+  }
+  return box;
+}
+
 /* ---------- tap a word for a translation ---------- */
 // Every English word in the explanation is tappable; exercises stay untouched so nothing is given away.
 const BOOKMARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 4.5h11a1 1 0 0 1 1 1v14l-6.5-4-6.5 4v-14a1 1 0 0 1 1-1z"/></svg>';
@@ -731,6 +767,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         // A couple of sentences to write out from memory, right after the score.
         recallPool.slice(-1).forEach(r => askToWrite(result, r.sentence, r.cue));
         recallPool = [];
+        if (!more && sec.listen) result.querySelector(":scope > .row").before(listenBlock(sec.listen));
         result.hidden = false;
         // The topic goes into the repetition queue; a clean portion pushes the next date further away.
         opts.onPortionDone?.(sec.id, ok === done);

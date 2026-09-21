@@ -177,4 +177,5 @@ export const CORE = {
   name: "имя", surname: "фамилия", age: "возраст", country: "страна", language: "язык", word: "слово", question: "вопрос", 
   number: "число, номер", price: "цена", shower: "душ", gym: "спортзал", party: "вечеринка", sport: "спорт", tv: "телевизор",
   weather: "погода", sun: "солнце", rain: "дождь", snow: "снег", sunny: "солнечно", rainy: "дождливо", foggy: "туманно",
+  grandchild: "внук, внучка", grandchildren: "внуки", back: "назад, обратно", "come back": "вернуться", lake: "озеро", pound: "фунт (деньги)",
 };
