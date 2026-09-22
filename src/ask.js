@@ -221,7 +221,7 @@ export function openAsk({ context = null, history = null, followUp = "", onAuth 
   else if (matchMedia("(min-width: 860px)").matches) setTimeout(() => input.focus(), 250);
 }
 
-// «Почему так» after a mistake: the helper explains it right in the task card, without the panel.
+// After a mistake the helper explains it right in the task card, without the panel.
 // The task, the answer and the site's hint go with the first question; «Продолжить в чате» carries it all to the panel.
 export function inlineAsk({ context, onAuth, auto = true }) {
   const history = [];
@@ -254,7 +254,10 @@ export function inlineAsk({ context, onAuth, auto = true }) {
       if (err instanceof AuthRequired) { onAuth?.(err); return; }
       out.innerHTML = err.code === "limit"
         ? `<p class="ask-err">Вопросы на сегодня закончились. Завтра можно будет спросить снова.</p>`
-        : `<div class="ask-err"><p>${navigator.onLine === false ? "Нет связи с интернетом." : "Помощник сейчас перегружен, вопрос не списался."}</p><button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button></div>`;
+        : context.feedback && history.length === 1
+          // The helper could not explain the mistake: the site's own hint stands in, with a retry.
+          ? `<p class="ask-inline-fallback">${esc(context.feedback)}</p><div class="ask-err"><p>ИИ сейчас не ответил.</p><button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button></div>`
+          : `<div class="ask-err"><p>${navigator.onLine === false ? "Нет связи с интернетом." : "Помощник сейчас перегружен, вопрос не списался."}</p><button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button></div>`;
       out.querySelector(".ask-retry")?.addEventListener("click", () => { if (!busy) request(); });
     } finally {
       busy = false; sync();

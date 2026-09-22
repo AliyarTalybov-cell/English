@@ -1071,9 +1071,12 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     };
     const wrong = (msg, v) => {
       st.tries++;
-      setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // «Почему так»: right after a wrong answer the AI helper explains the mistake in a card under the task,
-      // full width on every screen. The student can ask more there or continue in the chat.
+      // With the AI helper the explanation is its job: the message keeps only «Пока не так.», and the site's own
+      // hint goes to the helper as a clue (and is shown in its place if the helper cannot answer).
+      const aiExplains = !!opts.askInline && v !== undefined;
+      setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span>${aiExplains ? "" : `<span>${esc(msg)}</span>`}${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
+      // The AI helper explains the mistake in a card under the task, full width on every screen.
+      // The student can ask more there or continue in the chat.
       if (v === undefined || !opts.askInline) return; // «Используйте все слова» and similar hints keep the card as it is
       const inline = opts.askInline({
         lesson: lesson.title, topic: S.find(x => x.id === id.replace(/-\d+-\d+$/, ""))?.nav || "",
@@ -1084,7 +1087,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       li.classList.add("has-mistake-card");
       const why = document.createElement("aside");
       why.className = "mistake-card";
-      why.innerHTML = `<p class="mistake-card-head">Почему так</p>`;
+      why.innerHTML = `<p class="mistake-card-head">ИИ-помощник</p>`;
       why.appendChild(inline);
       li.appendChild(why);
     };
