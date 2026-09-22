@@ -817,7 +817,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const solvedHere = flat.filter(x => progress[x.id]).length;
     // «Проверьте себя»: in a topic not started yet, four tasks from different groups before the explanation.
     // They run in review mode, so nothing is written to progress.
-    if (!solvedHere && !opts.mix) {
+    if (!solvedHere && !opts.mix && sec.id === precheckTopic) {
       const pool = sec.groups.map((g, gi) => ({ g, gi })).filter(({ g }) => g.title !== "Переведите с русского");
       const picks = pool.slice(0, 4).map(({ g, gi }) => ({ it: g.items[0], id: `${sec.id}-${gi}-0` }));
       if (picks.length >= 3) {
@@ -1029,6 +1029,10 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     box.querySelector("[data-recall-skip]").addEventListener("click", () => box.remove());
     inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); check(); } });
   }
+
+  // «Проверьте себя» only once per lesson: in the first topic nobody has started, and not in tests or reading texts.
+  const precheckTopic = ["tests", "texts"].includes(lesson.slug) ? null
+    : S.find(sec => !sec.groups.some((g, gi) => g.items.some((_, ii) => progress[`${sec.id}-${gi}-${ii}`])))?.id;
 
   // The first formula of a topic's explanation, reused next to wrong answers.
   const formulaCache = {};
