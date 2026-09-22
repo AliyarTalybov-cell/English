@@ -785,6 +785,36 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const holder = document.createElement("div");
     pr.appendChild(holder);
     const solvedHere = flat.filter(x => progress[x.id]).length;
+    // «Проверьте себя»: in a topic not started yet, four tasks from different groups before the explanation.
+    // They run in review mode, so nothing is written to progress.
+    if (!solvedHere) {
+      const pool = sec.groups.map((g, gi) => ({ g, gi })).filter(({ g }) => g.title !== "Переведите с русского");
+      const picks = pool.slice(0, 4).map(({ g, gi }) => ({ it: g.items[0], id: `${sec.id}-${gi}-0` }));
+      if (picks.length >= 3) {
+        const line = document.createElement("p");
+        line.className = "precheck-line";
+        line.innerHTML = `Уже знаете эту тему? <button type="button" class="text-link">Проверьте себя: ${picks.length} ${plural(picks.length, "задание", "задания", "заданий")}</button>`;
+        line.querySelector("button").addEventListener("click", () => {
+          const box = document.createElement("div");
+          box.className = "precheck";
+          box.innerHTML = `<div class="precheck-head"><p class="eyebrow">Проверьте себя</p><button type="button" class="btn quiet tt-close" data-close>Скрыть</button></div><ol class="items"></ol><p class="precheck-result" aria-live="polite"></p>`;
+          const list = box.querySelector(".items"), result = box.querySelector(".precheck-result");
+          const got = [];
+          picks.forEach(x => list.appendChild(renderItem(x.it, x.id, true, status => {
+            got.push(status);
+            if (got.length < picks.length) return;
+            const ok = got.filter(v => v === "ok").length;
+            result.innerHTML = ok === picks.length
+              ? `${ok} из ${picks.length} с первой попытки. Тема знакома — можно сразу к практике. <button type="button" class="text-link" data-go>К практике ↓</button>`
+              : `${ok} из ${picks.length} с первой попытки. Начните с объяснения ниже — оно короткое.`;
+            result.querySelector("[data-go]")?.addEventListener("click", () => pr.scrollIntoView({ block: "start", behavior: smooth() }));
+          })));
+          box.querySelector("[data-close]").addEventListener("click", () => box.replaceWith(line));
+          line.replaceWith(box);
+        });
+        el.querySelector(".theory").before(line);
+      }
+    }
     const showOpener = () => {
       holder.innerHTML = "";
       const btn = document.createElement("button");
@@ -981,7 +1011,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     return formulaCache[secId];
   };
 
-  function renderItem(it, id, review) {
+  function renderItem(it, id, review, onDone) {
     const li = document.createElement("li");
     li.className = "item"; li.id = review ? "rev-" + id : id;
     const domId = li.id;
@@ -1018,6 +1048,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       li.appendChild(mark);
     });
     const finish = (status, silent) => {
+      if (!silent) onDone?.(status);
       if (review) {
         if (status === "ok" && progress[id]) { progress[id].fixed = true; persist(() => save.fixed(id)); updateProgress(); }
       } else if (!silent) {

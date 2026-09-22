@@ -1140,6 +1140,17 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .words-actions{margin-top:12px}
 .due-line a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
 
+/* «Проверьте себя» before the explanation of a topic not started yet */
+.text-link{padding:0;border:0;background:none;font:inherit;color:var(--accent);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,transparent);transition:border-color var(--t2) ease}
+.text-link:hover{border-bottom-color:var(--accent)}
+.precheck-line{font-size:14px;color:var(--muted);margin-bottom:-4px}
+.precheck{display:grid;gap:12px;animation:dropIn var(--t2) var(--ease-out)}
+.precheck-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.precheck-head .eyebrow{margin:0}
+.precheck-result{font-size:15px}
+.precheck-result:empty{display:none}
+@media (prefers-reduced-motion: reduce){.precheck{animation:none}}
+
 /* save a word from the translation popup */
 .word-add{flex:none;display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:10px;background:none;color:var(--muted);cursor:pointer;transition:background-color var(--t2) ease,color var(--t2) ease,transform var(--t1) ease}
 .word-add svg{width:19px;height:19px}
