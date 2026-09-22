@@ -16,7 +16,8 @@ const isQuiet = (url, opts) => QUIET.test(url) || (/\/rpc\/get_messages\b/.test(
 // Uploads get more time than ordinary queries.
 const timedFetch = (url, opts = {}) => {
   if (!AbortSignal.timeout) return fetch(url, opts);
-  const timeout = AbortSignal.timeout(/\/storage\/v1\//.test(String(url)) ? 60000 : 20000);
+  // Uploads and the AI helper (it reads data and thinks) get more time than ordinary queries.
+  const timeout = AbortSignal.timeout(/\/functions\/v1\//.test(String(url)) ? 120000 : /\/storage\/v1\//.test(String(url)) ? 60000 : 20000);
   const signal = !opts.signal ? timeout : AbortSignal.any ? AbortSignal.any([opts.signal, timeout]) : opts.signal;
   return fetch(url, { ...opts, signal });
 };
@@ -294,6 +295,23 @@ export const api = {
     const { error } = await sb.rpc("word_result", { p_word: word, p_ok: known });
     check(error);
     cache.delete("words");
+  },
+  // «Спросить»: the students' AI helper (Edge Function `ask`). messages: [{ role: "user" | "assistant", text }].
+  ask: async (messages, context) => {
+    const { data, error } = await sb.functions.invoke("ask", { body: { messages, context } });
+    if (!error) return data;
+    const status = error.context?.status;
+    let body = {};
+    try { body = await error.context.json(); } catch {}
+    if (status === 401) throw new AuthRequired("ask");
+    const err = new Error(body.error || "unavailable");
+    err.code = body.error || (status === 429 ? "limit" : "unavailable");
+    throw err;
+  },
+  aiLeft: async () => {
+    const { data, error } = await sb.rpc("ai_questions_left");
+    check(error);
+    return data;
   },
   getLesson: async slug => {
     const { data, error } = await sb.rpc("get_lesson", { p_slug: slug });

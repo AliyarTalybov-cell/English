@@ -214,6 +214,11 @@ button.chip{border:0}
 .share-btn svg{width:18px;height:18px}
 .share-btn:hover{opacity:.8}
 .share-btn:active{transform:scale(.96)}
+.hero-actions{display:flex;align-items:center;gap:14px}
+.hero-top .back{white-space:nowrap}
+/* on a phone «Поделиться» keeps only its icon so the header stays on one line */
+@media (max-width:480px){.hero-actions [data-share] span{display:none}}
+.fb .fb-ask{justify-self:start;margin-top:6px;font-size:14px}
 .auth-shared{font-size:14px;color:var(--muted);line-height:1.5;text-align:center;margin:-6px 0 4px}
 
 /* login */
@@ -1233,3 +1238,42 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .mix-mode .theory,.mix-mode .next-topic,.mix-mode .ph-right .btn{display:none!important}
 .mix-mode .group h4:empty{display:none}
 .due-mix-line{margin-top:4px;font-size:14px;color:var(--muted)}
+
+/* ---------- «Спросить»: the AI helper panel (bottom sheet on a phone, right panel on a wide screen) ---------- */
+.ask-backdrop{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0);transition:background-color var(--t2) ease}
+.ask-backdrop.open{background:rgba(0,0,0,.4)}
+.ask-panel{display:flex;flex-direction:column;width:100%;max-width:560px;height:min(85vh,720px);height:min(85dvh,720px);background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.25);transform:translateY(100%);transition:transform var(--t3) var(--ease-out)}
+.ask-backdrop.open .ask-panel{transform:none}
+@media (min-width:860px){
+  .ask-backdrop{align-items:stretch;justify-content:flex-end}
+  .ask-backdrop.open{background:rgba(0,0,0,.25)}
+  .ask-panel{max-width:420px;height:100%;border-radius:0;border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(0,0,0,.2);transform:translateX(100%)}
+}
+.ask-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+.ask-head h2{margin:0;font-size:19px}
+.ask-close{flex:none;width:36px;height:36px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink);cursor:pointer}
+.ask-close svg{width:18px;height:18px}
+.ask-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px 16px}
+.ask-empty p{font-size:15px;line-height:1.5;color:var(--muted)}
+.ask-suggest{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.ask-chip{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;cursor:pointer;transition:border-color var(--t2) ease}
+.ask-chip:hover{border-color:var(--accent)}
+.ask-log{list-style:none;margin:0;padding:0;display:grid;gap:16px}
+.ask-log:empty{display:none}
+.ask-q{justify-self:end;max-width:85%;padding:10px 14px;border-radius:16px 16px 4px 16px;background:var(--chip);font-size:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.ask-q small{display:block;margin-bottom:4px;font-size:13px;line-height:1.4;color:var(--muted);white-space:normal}
+.ask-a{font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.ask-a p+p,.ask-a p+ul,.ask-a ul+p{margin-top:8px}
+.ask-a ul{margin:6px 0 0;padding-left:18px;display:grid;gap:2px}
+.ask-a code{font-family:var(--mono);font-size:.92em}
+.ask-err{color:var(--bad)}
+.ask-wait{display:flex;gap:5px;padding:8px 0}
+.ask-wait span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:askDot 1.2s ease-in-out infinite}
+.ask-wait span:nth-child(2){animation-delay:.15s}
+.ask-wait span:nth-child(3){animation-delay:.3s}
+@keyframes askDot{0%,80%,100%{opacity:.25;transform:none}40%{opacity:1;transform:translateY(-2px)}}
+.ask-form{display:flex;align-items:flex-end;gap:8px;padding:12px 16px 8px;border-top:1px solid var(--line)}
+.ask-input{flex:1;min-height:44px;max-height:140px;resize:none;line-height:1.4}
+.ask-send:disabled{opacity:.5}
+.ask-note{padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:12px;line-height:1.4;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}}

@@ -6,6 +6,7 @@ import { getTheme, applyTheme, themeControlHtml, bindThemeControl } from "./them
 import { COURSE, LESSON_GOALS, LESSON_LABELS, LEVEL, AUTHOR } from "./course.js";
 import { stopSpeech } from "./speech.js";
 import { setupWords, renderWords, wordsNote, fillWordsLine, mountStudentWords } from "./words.js";
+import { openAsk } from "./ask.js";
 
 applyTheme(getTheme());
 // The word popup in lessons can save a word to «Мои слова».
@@ -705,6 +706,7 @@ async function renderLesson(slug, target) {
     }, {
       revealFrom: target || null,
       share: () => shareLesson(slug, lesson.title),
+      ask: ctx => openAsk({ context: ctx?.task ? ctx : null, onAuth: handleError }),
       onPortionDone: (sectionId, allRight) => api.scheduleReview(slug, sectionId, allRight).catch(() => {}),
     });
     if (target) requestAnimationFrame(() => {

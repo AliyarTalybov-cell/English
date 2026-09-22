@@ -11,6 +11,7 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 
 /* ---------- listening ---------- */
 const SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
+const ASK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 2-2.2 3.2"/><path d="M12 16.2h.01"/></svg>';
 const SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave1" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave2" d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 
 // Small round button that speaks one English phrase.
@@ -685,7 +686,10 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       <header class="hero">
         <div class="hero-top">
           <a class="back" href="#/">← Все уроки</a>
-          ${opts.share ? `<button type="button" class="share-btn" data-share>${SHARE_ICON}<span>Поделиться</span></button>` : ""}
+          <span class="hero-actions">
+            ${opts.ask ? `<button type="button" class="share-btn" data-ask>${ASK_ICON}<span>Спросить</span></button>` : ""}
+            ${opts.share ? `<button type="button" class="share-btn" data-share aria-label="Поделиться">${SHARE_ICON}<span>Поделиться</span></button>` : ""}
+          </span>
         </div>
         <h1>${esc(lesson.title)}</h1>
         ${lesson.subtitle ? `<p class="lead">${esc(lesson.subtitle)}</p>` : ""}
@@ -715,6 +719,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       </section>
     </main>`;
   root.querySelector("[data-share]")?.addEventListener("click", () => opts.share());
+  root.querySelector("[data-ask]")?.addEventListener("click", () => opts.ask());
 
   // Portions call these back when an answer is saved, to know when a portion is finished.
   const answerHooks = [];
@@ -1116,6 +1121,18 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
+      // The AI helper gets the task and the student's answer and explains the rule.
+      if (opts.ask) {
+        const secId = id.replace(/-\d+-\d+$/, "");
+        const link = document.createElement("button");
+        link.type = "button"; link.className = "text-link fb-ask"; link.textContent = "Спросить, почему так";
+        link.addEventListener("click", () => opts.ask({
+          lesson: lesson.title, topic: S.find(x => x.id === secId)?.nav || "",
+          task: it.q ? it.q.replace(/_{3,}/g, "…") : it.t === "order" ? `Соберите предложение из слов: ${it.w.join(" / ")}` : "",
+          answer: v || "",
+        }));
+        fb.appendChild(link);
+      }
       // «Почему так» for written and assembled sentences: only a rule about the mistake actually made.
       // On a wide screen to the right of the task, on a phone below it.
       if (v === undefined || !((it.t === "input" && it.a[0].includes(" ")) || it.t === "order")) return;
@@ -1136,7 +1153,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     if (it.t === "choice") {
       li.querySelectorAll(".opt").forEach(b => b.addEventListener("click", () => {
         if (b.dataset.o === it.a) finish(st.tries ? "retry" : "ok");
-        else { b.classList.add("bad"); b.disabled = true; wrong((it.b && it.b[b.dataset.o]) || whyNotBe(b.dataset.o, it.a) || "Этот вариант не подходит. Попробуйте другой."); }
+        else { b.classList.add("bad"); b.disabled = true; wrong((it.b && it.b[b.dataset.o]) || whyNotBe(b.dataset.o, it.a) || "Этот вариант не подходит. Попробуйте другой.", b.dataset.o); }
       }));
     }
     if (it.t === "input") {
@@ -1193,7 +1210,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     if (it.t === "fix") {
       li.querySelectorAll(".w").forEach(b => b.addEventListener("click", () => {
         if (+b.dataset.i === it.w) finish(st.tries ? "retry" : "ok");
-        else { b.classList.add("bad"); b.disabled = true; wrong(`«${b.textContent.replace(/[.?!]$/, "")}» здесь стоит правильно. Проверьте, подходит ли каждое слово к подлежащему.`); }
+        else { b.classList.add("bad"); b.disabled = true; wrong(`«${b.textContent.replace(/[.?!]$/, "")}» здесь стоит правильно. Проверьте, подходит ли каждое слово к подлежащему.`, `ошибка в слове «${b.textContent.replace(/[.?!]$/, "")}»`); }
       }));
       li.querySelector("[data-show]").addEventListener("click", () => finish("shown"));
     }
