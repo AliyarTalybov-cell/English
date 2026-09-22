@@ -1121,36 +1121,30 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // «Спросить у ИИ»: the helper gets the task, the student's answer and what the site said about the mistake;
-      // the student asks their own question. The link sits in «Почему так» when there is one, otherwise under the message.
-      let askLink = null;
-      if (opts.ask) {
-        const secId = id.replace(/-\d+-\d+$/, "");
-        askLink = document.createElement("button");
-        askLink.type = "button"; askLink.className = "text-link fb-ask"; askLink.textContent = "Спросить у ИИ";
-        askLink.addEventListener("click", () => opts.ask({
-          lesson: lesson.title, topic: S.find(x => x.id === secId)?.nav || "",
-          task: it.q ? it.q.replace(/_{3,}/g, "…") : it.t === "order" ? `Соберите предложение из слов: ${it.w.join(" / ")}` : "",
-          answer: v || "",
-          feedback: msg,
-        }));
-        fb.appendChild(askLink);
-      }
-      // «Почему так» for written and assembled sentences: only a rule about the mistake actually made.
-      // On a wide screen to the right of the task, on a phone below it.
-      if (v === undefined || !((it.t === "input" && it.a[0].includes(" ")) || it.t === "order")) return;
-      const parts = whyParts(it, mistakeKinds(it, v), topicFormula(id));
+      // «Почему так»: a rule about the mistake actually made (written and assembled sentences), and under it
+      // a question to the AI helper right in the card. On a wide screen to the right of the task, on a phone below it.
+      if (v === undefined) return; // «Используйте все слова» and similar hints keep the card as it is
+      const written = (it.t === "input" && it.a[0].includes(" ")) || it.t === "order";
+      const parts = written ? whyParts(it, mistakeKinds(it, v), topicFormula(id)) : [];
+      const inline = opts.askInline ? opts.askInline({
+        lesson: lesson.title, topic: S.find(x => x.id === id.replace(/-\d+-\d+$/, ""))?.nav || "",
+        task: it.q ? it.q.replace(/_{3,}/g, "…") : it.t === "order" ? `Соберите предложение из слов: ${it.w.join(" / ")}` : "",
+        answer: v, feedback: msg,
+      }) : null;
       li.querySelector(".mistake-card")?.remove();
-      li.classList.toggle("has-mistake-card", parts.length > 0);
-      if (!parts.length) return;
+      li.classList.toggle("has-mistake-card", !!(parts.length || inline));
+      if (!parts.length && !inline) return;
       const why = document.createElement("aside");
       why.className = "mistake-card";
-      why.innerHTML = `<p class="mistake-card-head">Почему так</p>${parts.join("")}`;
+      why.innerHTML = `<p class="mistake-card-head">${parts.length ? "Почему так" : "Спросить у ИИ"}</p>${parts.join("")}`;
+      if (inline) {
+        if (parts.length) why.insertAdjacentHTML("beforeend", '<p class="mistake-card-label mistake-card-ai">Спросить у ИИ</p>');
+        why.appendChild(inline);
+      }
       // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
       const rows = li.children.length;
       li.style.setProperty("--mc-rows", `repeat(${rows}, auto) 1fr`);
       why.style.gridRow = `1 / span ${rows + 1}`;
-      if (askLink) why.appendChild(askLink);
       li.appendChild(why);
     };
 

@@ -178,7 +178,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .mistake-card-rules b{color:var(--ink);font-weight:600}
 .item:not(.has-mistake-card) .mistake-card{display:none}
 @media (max-width:859px){.mistake-card{grid-row:auto!important}}
-@media (min-width:860px){.item.has-mistake-card{grid-template-columns:minmax(0,1fr) 220px;grid-template-rows:var(--mc-rows);column-gap:16px}.item.has-mistake-card>*{grid-column:1}.item.has-mistake-card>.mistake-card{grid-column:2}}
+@media (min-width:860px){.item.has-mistake-card{grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:var(--mc-rows);column-gap:16px}.item.has-mistake-card>*{grid-column:1}.item.has-mistake-card>.mistake-card{grid-column:2}}
 @media (prefers-reduced-motion: reduce){.mistake-card{animation:none}}
 .fb:empty{display:none}
 .fb.good{background:var(--good-soft)}
@@ -218,8 +218,19 @@ button.chip{border:0}
 .hero-top .back{white-space:nowrap}
 /* on a phone «Поделиться» keeps only its icon so the header stays on one line */
 @media (max-width:480px){.hero-actions [data-share] span{display:none}}
-.fb .fb-ask{justify-self:start;margin-top:6px;font-size:14px}
-.mistake-card .fb-ask{justify-self:start;font-size:14px}
+/* «Спросить у ИИ» inside the card: a question and its answer right there */
+.mistake-card-ai{padding-top:12px;border-top:1px solid var(--line)}
+.mistake-card{min-width:0;grid-template-columns:minmax(0,1fr)}
+.ask-inline{display:grid;gap:8px;min-width:0}
+.ask-inline-form{display:flex;align-items:center;gap:8px;min-width:0}
+.ask-inline-input{flex:1 1 0;width:0;min-width:0;min-height:40px;border-radius:20px;padding:8px 14px;font-size:15px}
+.ask-inline .ask-send{width:40px;height:40px}
+.ask-inline .ask-send svg{width:18px;height:18px}
+.ask-inline-chip{justify-self:start;padding:6px 10px;font-size:13px}
+.ask-inline-chip[hidden],.ask-inline-out[hidden]{display:none}
+.ask-inline-out{display:grid;gap:8px}
+.ask-inline-out .ask-a{font-size:14px;line-height:1.5}
+.ask-inline-more{justify-self:start;font-size:14px}
 .auth-shared{font-size:14px;color:var(--muted);line-height:1.5;text-align:center;margin:-6px 0 4px}
 
 /* login */
