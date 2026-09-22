@@ -1235,11 +1235,6 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 @media (max-width:480px){.study .row{display:grid;width:100%;justify-self:stretch;justify-content:stretch}.study .row .btn{width:100%}}
 @media (prefers-reduced-motion: reduce){.study,.study.out,.flip,.flip-inner,.flip.enter,.quiz-step,.study-done,.study-progress i{animation:none;transition:none}}
 
-/* ---------- «Повторить вперемешку»: only the tasks and the result ---------- */
-.mix-mode .nav,.mix-mode #review,.mix-mode .finish,.mix-mode .topic>header,.mix-mode .topic-actions,.mix-mode .to-practice,
-.mix-mode .theory,.mix-mode .next-topic,.mix-mode .ph-right .btn{display:none!important}
-.mix-mode .group h4:empty{display:none}
-.due-mix-line{margin-top:4px;font-size:14px;color:var(--muted)}
 
 /* ---------- «Спросить»: the AI helper panel (bottom sheet on a phone, right panel on a wide screen) ---------- */
 .ask-backdrop{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0);transition:background-color var(--t2) ease}
