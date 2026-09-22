@@ -270,12 +270,19 @@ function diagnose(it, v, tries) {
   const noArt = arr => arr.filter(w => !["a", "an", "the"].includes(w)).join(" ");
   if (it.a.some(a => noArt(norm(a).split(" ")) === noArt(u))) {
     return e.includes("an") && !u.includes("an") ? "Почти! Перед гласным звуком нужен артикль an: an engineer."
-      : "Почти! Проверьте артикли a / the. Перед профессией в единственном числе ставим a: a doctor.";
+      : e.some(w => ["doctor", "teacher", "nurse", "student", "engineer", "pilot", "singer", "writer", "musician", "photographer"].includes(w))
+        ? "Почти! Проверьте артикли a / the. Перед профессией в единственном числе ставим a: a doctor."
+        : "Почти! Проверьте артикли: перед одним предметом, который можно посчитать, нужен a / an, перед уже известным — the.";
   }
   if ([...u].sort().join(" ") === [...e].sort().join(" ")) {
     if (BE.includes(e[0])) return "Все слова верные, но порядок другой. В вопросе am / is / are стоит перед подлежащим.";
-    if (["where", "what", "when", "who", "how", "why"].includes(e[0])) return "Все слова верные, но порядок другой. После вопросительного слова сразу идёт am / is / are, потом подлежащее. Предлог — в конце.";
-    return "Все слова верные, но порядок другой. Порядок: кто + am / is / are + остальное.";
+    if (["where", "what", "when", "who", "how", "why"].includes(e[0])) return e.includes("do") || e.includes("does") || e.includes("did")
+      ? "Все слова верные, но порядок другой. После вопросительного слова идёт do / does / did, потом кто и действие. Предлог — в конце."
+      : "Все слова верные, но порядок другой. После вопросительного слова сразу идёт am / is / are, потом подлежащее. Предлог — в конце.";
+    if (["do", "does", "did", "have", "has", "can"].includes(e[0])) return "Все слова верные, но порядок другой. В вопросе вспомогательный глагол стоит в самом начале, перед тем, кто действует.";
+    return e.some(w => BE.includes(w))
+      ? "Все слова верные, но порядок другой. Порядок: кто + am / is / are + остальное."
+      : "Все слова верные, но порядок другой. Порядок: кто → действие → что → где → когда.";
   }
   if ((u.includes("my") || u.includes("our")) && e.includes("your")) return "Вы спрашиваете собеседника, поэтому my / our меняем на your.";
   const eb = e.find(w => BE.includes(w)), ub = u.filter(w => BE.includes(w));
@@ -286,8 +293,58 @@ function diagnose(it, v, tries) {
   if (e.includes("from") && !u.includes("from")) return "Не хватает from — «откуда». Оно стоит в конце вопроса.";
   if (e.includes("in") && !u.includes("in")) return "Не хватает предлога in.";
   if (e.includes("it") && !u.includes("it")) return "Пропущено подлежащее it.";
+  const word = wordDiff(it, u);
+  if (word) return word;
   if (tries >= 1 && e[0] !== u[0]) return `Подсказка: предложение начинается с «${cap(it.a[0].split(" ")[0])}».`;
   return "Сравните с формулой в объяснении темы. Проверьте каждое слово.";
+}
+
+// Word-by-word comparison with the closest accepted answer: names the kind of mistake without giving the answer away.
+const AGREE = [["have", "has"], ["do", "does"], ["is", "are"], ["am", "is"], ["am", "are"], ["was", "were"]];
+function wordDist(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function wordDiff(it, u) {
+  const best = it.a.map(a => norm(a).split(" ")).sort((x, y) => wordDist(u, x) - wordDist(u, y))[0];
+  const missing = best.filter(w => !u.includes(w)), extra = u.filter(w => !best.includes(w));
+  if (!missing.length && !extra.length) return "";
+  const pair = extra.find(x => missing.some(m => AGREE.some(([p, q]) => (p === x && q === m) || (q === x && p === m))
+    || x + "s" === m || m + "s" === x || x + "es" === m || m + "es" === x));
+  if (pair) return `Форма «${pair}» не подходит к тому, кто действует. I / you / we / they — have, do, are и глагол без -s; he / she / it — has, does, is и глагол с -s.`;
+  if (!extra.length && missing.length === 1 && ["a", "an", "the"].includes(missing[0])) return "Почти! Не хватает артикля a / an / the.";
+  if (!extra.length && missing.some(w => ["do", "does", "did"].includes(w))) return "Не хватает вспомогательного глагола do / does / did: в вопросе и отрицании без него нельзя.";
+  if (!extra.length) return missing.length === 1 ? "Почти! Не хватает одного слова." : `Не хватает нескольких слов (${missing.length}).`;
+  if (!missing.length) return extra.length === 1 ? `Лишнее слово: «${extra[0]}».` : `Лишние слова: «${extra.join("», «")}».`;
+  if (missing.length === 1 && extra.length === 1) return `Почти! Одно слово не то: «${extra[0]}».`;
+  return "";
+}
+
+// «Как строится»: the word order of the sentence type, shown next to a wrong typed or assembled answer.
+const WH_WORDS = ["where", "what", "when", "who", "how", "why", "which", "whose"];
+const AUX_WORDS = ["am", "is", "are", "was", "were", "do", "does", "did", "have", "has", "can"];
+function orderSchema(answer) {
+  const first = answer.replace(/[.?!,]/g, "").split(" ")[0].toLowerCase();
+  const q = /\?\s*$/.test(answer);
+  if (q && WH_WORDS.includes(first)) return { note: "Вопрос: вопросительное слово, за ним вспомогательный глагол, потом кто.", slots: ["где · что · когда…", "!do · does · is · did…", "кто", "действие", "остальное"] };
+  if (q && AUX_WORDS.includes(first)) return { note: "Вопрос «да / нет» начинается со вспомогательного глагола.", slots: ["!Do · Does · Is · Can…", "кто", "действие", "остальное"] };
+  if (/n't\b|\bnot\b/i.test(answer)) return { note: "Отрицание стоит сразу после того, кто действует.", slots: ["кто", "!don't · isn't · can't…", "действие", "что · где · когда"] };
+  return { note: "В английском порядок строгий: сначала кто, потом действие, потом остальное.", slots: ["кто", "!действие", "что · кого", "где", "когда"] };
+}
+const slotsHtml = slots => `<div class="formula">${slots.map((x, i) =>
+  (i ? '<span class="plus">+</span>' : "") + `<span class="slot${x.startsWith("!") ? " be" : ""}">${esc(x.replace(/^!/, ""))}</span>`).join("")}</div>`;
+function whyAside(it, topicFormula) {
+  const box = document.createElement("aside");
+  box.className = "why";
+  const { note, slots } = orderSchema(it.a[0]);
+  box.innerHTML = `
+    <p class="why-head">Как строится</p>
+    ${topicFormula ? `<div class="why-part"><p class="why-label">Формула темы</p>${topicFormula}</div>` : ""}
+    <div class="why-part"><p class="why-label">Порядок слов</p>${slotsHtml(slots)}<p class="why-note">${note}</p></div>`;
+  return box;
 }
 
 function orderHint(it, tries) {
@@ -411,15 +468,18 @@ function dictationPanel(sec) {
 
 /* ---------- «Диалог на слух» at the end of a topic's practice ---------- */
 // Listen first and translate in your head; the text and the line-by-line translation open only when needed.
-function listenBlock({ scene, lines }) {
+function listenBlock({ scene, lines }, onClose) {
   // In «По ролям» the student takes the part of whoever answers first.
   const me = (lines.find(([who]) => who !== lines[0][0]) || lines[0])[0];
   const box = document.createElement("div");
   box.className = "topic-text";
   box.innerHTML = `
     <div class="tt-head">
-      <p class="recall-head">Диалог на слух · послушайте и переведите про себя</p>
-      <p class="tt-scene">${esc(scene)}</p>
+      <div class="tt-head-text">
+        <p class="recall-head">Диалог на слух · послушайте и переведите про себя</p>
+        <p class="tt-scene">${esc(scene)}</p>
+      </div>
+      ${onClose ? `<button type="button" class="btn quiet tt-close" data-tt-close>Закрыть</button>` : ""}
     </div>
     ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-tt-play>▶ Послушать</button><button class="btn quiet" type="button" data-tt-slow>Медленнее</button><button class="btn quiet" type="button" data-tt-role>По ролям</button></div>
     <p class="tt-role">Вы — ${esc(me)}. Ваши реплики отмечены: скажите их вслух в паузе.</p>` : ""}
@@ -429,6 +489,7 @@ function listenBlock({ scene, lines }) {
         `<li><span class="tt-who">${esc(who)}</span><span class="tt-say"><span class="tt-en">${esc(en)}</span><span class="tt-ru">${esc(ru)}</span></span></li>`).join("")}</ol>
       <button type="button" class="tt-link" data-tt-ru aria-expanded="false">Показать перевод</button>
     </details>`;
+  box.querySelector("[data-tt-close]")?.addEventListener("click", onClose);
   const more = box.querySelector(".tt-more"), sum = more.querySelector("summary");
   more.addEventListener("toggle", () => { sum.textContent = more.open ? "Скрыть текст" : "Показать текст"; });
   const ruBtn = box.querySelector("[data-tt-ru]");
@@ -829,6 +890,23 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         });
         actions.append(dictBtn);
       }
+      // The same dialogue as at the end of the practice, available at any time.
+      if (sec.listen) {
+        const dlgBtn = document.createElement("button");
+        dlgBtn.type = "button"; dlgBtn.className = "to-practice dict-open";
+        dlgBtn.textContent = "Диалог на слух";
+        dlgBtn.setAttribute("aria-expanded", "false");
+        const close = () => { stopSpeech(); el.querySelector(".topic-text.standalone")?.remove(); dlgBtn.setAttribute("aria-expanded", "false"); };
+        dlgBtn.addEventListener("click", () => {
+          if (el.querySelector(".topic-text.standalone")) { close(); return; }
+          const panel = listenBlock(sec.listen, close);
+          panel.classList.add("standalone");
+          actions.after(panel);
+          dlgBtn.setAttribute("aria-expanded", "true");
+          panel.scrollIntoView({ block: "nearest", behavior: smooth() });
+        });
+        actions.append(dlgBtn);
+      }
       theory.querySelectorAll(".reading p").forEach(par => {
         const text = englishOf(par);
         if (!text) return;
@@ -890,6 +968,18 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     box.querySelector("[data-recall-skip]").addEventListener("click", () => box.remove());
     inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); check(); } });
   }
+
+  // The first formula of a topic's explanation, reused next to wrong answers.
+  const formulaCache = {};
+  const topicFormula = id => {
+    const secId = id.replace(/-\d+-\d+$/, "");
+    if (!(secId in formulaCache)) {
+      const tpl = document.createElement("template");
+      tpl.innerHTML = S.find(x => x.id === secId)?.theory || "";
+      formulaCache[secId] = tpl.content.querySelector(".formula")?.outerHTML || "";
+    }
+    return formulaCache[secId];
+  };
 
   function renderItem(it, id, review) {
     const li = document.createElement("li");
@@ -959,6 +1049,18 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = msg => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
+      // Written and assembled sentences get «Как строится» once: on a wide screen to the right, on a phone below.
+      if ((it.t === "input" && it.a[0].includes(" ")) || it.t === "order") {
+        if (!li.querySelector(".why")) {
+          const why = whyAside(it, topicFormula(id));
+          // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
+          const rows = li.children.length;
+          li.style.setProperty("--why-rows", `repeat(${rows}, auto) 1fr`);
+          why.style.gridRow = `1 / span ${rows + 1}`;
+          li.appendChild(why);
+          li.classList.add("has-why");
+        }
+      }
     };
 
     if (it.t === "choice") {
