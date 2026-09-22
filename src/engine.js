@@ -1072,8 +1072,8 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // «Почему так»: right after a wrong answer the AI helper explains the mistake in a card next to the task
-      // (on a wide screen to the right, on a phone below). The student can ask more there or continue in the chat.
+      // «Почему так»: right after a wrong answer the AI helper explains the mistake in a card under the task,
+      // full width on every screen. The student can ask more there or continue in the chat.
       if (v === undefined || !opts.askInline) return; // «Используйте все слова» and similar hints keep the card as it is
       const inline = opts.askInline({
         lesson: lesson.title, topic: S.find(x => x.id === id.replace(/-\d+-\d+$/, ""))?.nav || "",
@@ -1086,10 +1086,6 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       why.className = "mistake-card";
       why.innerHTML = `<p class="mistake-card-head">Почему так</p>`;
       why.appendChild(inline);
-      // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
-      const rows = li.children.length;
-      li.style.setProperty("--mc-rows", `repeat(${rows}, auto) 1fr`);
-      why.style.gridRow = `1 / span ${rows + 1}`;
       li.appendChild(why);
     };
 
