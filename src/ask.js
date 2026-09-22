@@ -42,7 +42,9 @@ const taskLine = c => `<small>${esc(c.task)}${c.answer ? ` · ваш ответ:
 let panel = null;
 
 export function openAsk({ context = null, history = null, onAuth } = {}) {
-  if (panel) { if (context) panel.askAbout(context); return; }
+  // «Продолжить в чате» always shows its conversation: a panel left open is replaced.
+  if (panel && history) panel.close();
+  else if (panel) { if (context) panel.askAbout(context); return; }
   const messages = [];
   let busy = false, left = null;
 
@@ -185,7 +187,7 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); root.querySelector(".ask-form").requestSubmit(); }
   });
 
-  panel = { askAbout: c => { setContext(c); input.focus({ preventScroll: true }); } };
+  panel = { askAbout: c => { setContext(c); input.focus({ preventScroll: true }); }, close: () => close() };
   setContext(context);
   // «Продолжить в чате»: the questions and answers from a task card continue here.
   for (const m of history || []) {
