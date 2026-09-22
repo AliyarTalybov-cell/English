@@ -116,7 +116,7 @@ export async function renderWords() {
           <p class="empty words-empty" data-empty hidden></p>
           <div class="more-line"><button type="button" class="btn quiet" data-more hidden>Показать ещё</button></div>
           <div class="words-clear" data-clear-box><button type="button" class="inline-link words-clear-link" data-clear>Удалить все слова</button></div>`
-        : `<p class="empty">Пока пусто. В уроке нажмите на английское слово в объяснении и в подсказке нажмите «+», чтобы слово попало сюда.</p>`}
+        : `<p class="empty">Пока пусто. В уроке нажмите на любое английское слово, а в подсказке с переводом — значок закладки, и слово попадёт сюда.</p>`}
         <p class="back-line"><a class="back" href="#/">← Все уроки</a></p>
       </main>`;
     ui.bindTopbar();

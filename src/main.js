@@ -210,7 +210,8 @@ function stagger(container, max = 10) {
 function countUp(scope) {
   scope.querySelectorAll("[data-count]").forEach(el => {
     const target = Number(el.dataset.count), suffix = el.dataset.suffix || "";
-    if (reduced() || !target) { el.textContent = target + suffix; return; }
+    // A background tab draws no frames: show the final number at once instead of a frozen 0.
+    if (reduced() || !target || document.hidden) { el.textContent = target + suffix; return; }
     const start = performance.now(), dur = 700;
     const tick = now => {
       const p = Math.min(1, (now - start) / dur), eased = 1 - Math.pow(1 - p, 3);
