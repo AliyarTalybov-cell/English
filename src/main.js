@@ -197,7 +197,7 @@ function removeFloating() {
   stopSpeech();
   stopChat?.(); stopChat = null;
   docCleanups.forEach(off => off()); docCleanups = [];
-  document.querySelectorAll(".to-top").forEach(b => b.remove());
+  document.querySelectorAll(".to-top, .ask-fab").forEach(b => b.remove());
 }
 
 // Stagger direct children of a container (CSS reads --i for the delay).

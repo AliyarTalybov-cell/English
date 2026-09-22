@@ -151,6 +151,7 @@ export function openAsk({ context = null, history = null, followUp = "", onAuth 
           <button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button>`;
         wait.querySelector(".ask-retry").addEventListener("click", () => { if (!busy) request(wait, used); });
       }
+      scrollDown(); // the message and «Повторить» come into view
     } finally {
       busy = false; showLeft();
     }

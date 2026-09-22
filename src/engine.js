@@ -650,7 +650,6 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         <div class="hero-top">
           <a class="back" href="#/">← Все уроки</a>
           <span class="hero-actions">
-            ${opts.ask ? `<button type="button" class="share-btn" data-ask>${ASK_ICON}<span>Спросить</span></button>` : ""}
             ${opts.share ? `<button type="button" class="share-btn" data-share aria-label="Поделиться">${SHARE_ICON}<span>Поделиться</span></button>` : ""}
           </span>
         </div>
@@ -682,7 +681,6 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       </section>
     </main>`;
   root.querySelector("[data-share]")?.addEventListener("click", () => opts.share());
-  root.querySelector("[data-ask]")?.addEventListener("click", () => opts.ask());
 
   // Portions call these back when an answer is saved, to know when a portion is finished.
   const answerHooks = [];
@@ -1211,6 +1209,16 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
   toTop.setAttribute("aria-label", "Наверх"); toTop.textContent = "↑";
   toTop.addEventListener("click", () => scrollTo({ top: 0, behavior: smooth() }));
   document.body.appendChild(toTop);
+  // «Спросить ИИ» is always at hand in the corner; «наверх», when it shows, sits above it.
+  if (opts.ask) {
+    const fab = document.createElement("button");
+    fab.type = "button"; fab.className = "ask-fab";
+    fab.setAttribute("aria-label", "Спросить ИИ"); fab.title = "Спросить ИИ";
+    fab.innerHTML = ASK_ICON;
+    fab.addEventListener("click", () => opts.ask());
+    document.body.appendChild(fab);
+    toTop.classList.add("with-fab");
+  }
   const onScroll = () => {
     if (!toTop.isConnected) { removeEventListener("scroll", onScroll); return; }
     const show = scrollY >= 900;

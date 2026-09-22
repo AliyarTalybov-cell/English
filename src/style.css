@@ -206,8 +206,7 @@ button.chip{border:0}
 .share-btn:active{transform:scale(.96)}
 .hero-actions{display:flex;align-items:center;gap:14px}
 .hero-top .back{white-space:nowrap}
-/* on a phone «Поделиться» keeps only its icon so the header stays on one line */
-@media (max-width:480px){.hero-actions [data-share] span{display:none}}
+
 /* «Спросить у ИИ» inside the card: a question and its answer right there */
 .mistake-card{min-width:0;grid-template-columns:minmax(0,1fr)}
 .ask-inline{display:grid;gap:8px;min-width:0}
@@ -1295,3 +1294,11 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-send:disabled{opacity:.35;cursor:default}
 .ask-note{padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:12px;line-height:1.4;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}}
+
+/* ---------- «Спросить ИИ»: the chat button in the corner of a lesson ---------- */
+.ask-fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:31;width:52px;height:52px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;transition:transform var(--t1) ease,border-color var(--t2) ease}
+.ask-fab svg{width:24px;height:24px}
+.ask-fab:hover{border-color:var(--accent)}
+.ask-fab:active{transform:scale(.94)}
+.to-top.with-fab{right:18px;bottom:calc(16px + 52px + 12px + env(safe-area-inset-bottom,0px))}
+@media (prefers-reduced-motion: reduce){.ask-fab{transition:none}}
