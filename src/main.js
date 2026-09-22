@@ -533,6 +533,7 @@ function dueBlock() {
       <span class="arr" aria-hidden="true">→</span>
     </a></li>`).join("")}</ul>
     ${rest > 0 ? `<p class="hint-line">Ещё ${rest} ${plural(rest, "тема", "темы", "тем")} в очереди</p>` : ""}
+    <p class="due-mix-line">Или всё вместе: <a class="text-link" href="#/mix">повторить вперемешку · ${mixSize(due.items.length)} заданий</a></p>
   </section>`;
 }
 
@@ -594,6 +595,79 @@ function paintList(lessons, silent) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       main.querySelectorAll(".bar i[data-pct]").forEach(b => { b.style.width = b.dataset.pct + "%"; });
     }));
+}
+
+/* ---------- mixed review ---------- */
+// Tasks from every topic that is due, shuffled together: mistakes first, then tasks already solved.
+// Answers here do not rewrite progress; each topic only gets its next repetition date, as after a practice.
+const mixSize = topics => Math.min(10, Math.max(2, topics) * 3);
+async function renderMix() {
+  removeFloating();
+  app.innerHTML = topbar(true) + `
+    <main class="wrap" aria-busy="true">
+      <div class="skel-wrap" aria-label="Собираю задания">
+        <div class="skel line" style="width:25%"></div><div class="skel title"></div><div class="skel card"></div><div class="skel card"></div>
+      </div>
+    </main>`;
+  bindTopbar();
+  window.scrollTo(0, 0);
+  try {
+    const due = await api.dueReviews();
+    const topics = (due.items || []).slice(0, 5);
+    if (!topics.length) {
+      app.innerHTML = topbar(true) + `<main class="wrap screen"><p class="empty">Сейчас повторять нечего. <a class="back" href="#/">← Все уроки</a></p></main>`;
+      bindTopbar();
+      return;
+    }
+    const slugs = [...new Set(topics.map(t => t.lesson_slug))];
+    const lessons = Object.fromEntries(await Promise.all(slugs.map(async s => [s, await api.getLesson(s)])));
+    const per = Math.max(2, Math.ceil(mixSize(topics.length) / topics.length));
+    const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+    const picked = [];
+    for (const t of topics) {
+      const lesson = lessons[t.lesson_slug];
+      const sec = lesson?.content.sections.find(x => x.id === t.section_id);
+      if (!sec) continue;
+      const progress = lesson.progress || {};
+      const all = [];
+      sec.groups.forEach((g, gi) => g.items.forEach((it, ii) => all.push({ it, id: `${sec.id}-${gi}-${ii}` })));
+      const wrong = shuffle(all.filter(x => progress[x.id] && progress[x.id].status !== "ok" && !progress[x.id].fixed));
+      const solved = shuffle(all.filter(x => progress[x.id]?.status === "ok"));
+      const rest = shuffle(all.filter(x => !progress[x.id]));
+      [...wrong, ...solved, ...rest].slice(0, per).forEach(x => picked.push({ ...x, slug: t.lesson_slug, section: t.section_id }));
+    }
+    const items = shuffle(picked).slice(0, mixSize(topics.length));
+    const results = {};
+    const mix = {
+      title: "Повторение вперемешку",
+      subtitle: topics.map(t => t.nav).join(" · "),
+      content: { steps: false, sections: [{ id: "mix", nav: "Вперемешку", eyebrow: "", title: "", theory: "", groups: [{ title: "", items: items.map(x => x.it) }] }] },
+    };
+    const container = document.createElement("div");
+    container.className = "screen";
+    app.innerHTML = topbar(true);
+    app.appendChild(container);
+    bindTopbar();
+    mountLesson(container, mix, {}, {
+      status: (id, status) => { results[id] = status; return Promise.resolve(true); },
+      fixed: () => Promise.resolve(true),
+      reset: () => Promise.resolve(true),
+    }, {
+      mix: true,
+      onPortionDone: () => {
+        const byTopic = {};
+        items.forEach((x, i) => {
+          const key = x.slug + "\n" + x.section;
+          byTopic[key] = byTopic[key] !== false && results[`mix-0-${i}`] === "ok";
+        });
+        Object.entries(byTopic).forEach(([key, allRight]) => {
+          const [slug, section] = key.split("\n");
+          api.scheduleReview(slug, section, allRight).catch(() => {});
+        });
+      },
+    });
+    document.title = "Повторение вперемешку · English";
+  } catch (err) { handleError(err); }
 }
 
 /* ---------- lesson ---------- */
@@ -2101,6 +2175,7 @@ async function route() {
   refreshUnread();
   const m = location.hash.match(/^#\/lesson\/([^/?#]+)(?:\?t=([^&#]+))?/);
   if (m) renderLesson(decodeURIComponent(m[1]), m[2] ? decodeURIComponent(m[2]) : "");
+  else if (location.hash.startsWith("#/mix")) renderMix();
   else if (location.hash.startsWith("#/profile")) renderProfile();
   else if (location.hash.startsWith("#/users")) renderUsers();
   else if (location.hash.startsWith("#/words")) renderWords();

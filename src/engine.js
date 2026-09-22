@@ -722,6 +722,8 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
   // choosing from three buttons is easier than recalling the words yourself.
   let recallPool = [];
   const $ = sel => root.querySelector(sel);
+  // «Повторить вперемешку» reuses the lesson screen with only the tasks and their result.
+  root.classList.toggle("mix-mode", !!opts.mix);
   // Tap-to-translate works across the whole lesson: explanation, tasks, feedback and «Мои ошибки».
   enableTapTranslate($("main.wrap"));
   const topics = $("[data-topics]");
@@ -815,7 +817,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const solvedHere = flat.filter(x => progress[x.id]).length;
     // «Проверьте себя»: in a topic not started yet, four tasks from different groups before the explanation.
     // They run in review mode, so nothing is written to progress.
-    if (!solvedHere) {
+    if (!solvedHere && !opts.mix) {
       const pool = sec.groups.map((g, gi) => ({ g, gi })).filter(({ g }) => g.title !== "Переведите с русского");
       const picks = pool.slice(0, 4).map(({ g, gi }) => ({ it: g.items[0], id: `${sec.id}-${gi}-0` }));
       if (picks.length >= 3) {
@@ -890,12 +892,13 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         result.innerHTML = `
           <p class="eyebrow">Часть ${pi + 1} из ${parts.length} пройдена</p>
           <p class="portion-score"><b>${ok}</b> из ${done} с первой попытки</p>
-          <p class="muted">${mins ? `Примерно ${mins} ${plural(mins, "минута", "минуты", "минут")}.` : ""}${ok === done ? "" : " Ошибки ждут в «Моих ошибках»."}</p>
+          <p class="muted">${mins ? `Примерно ${mins} ${plural(mins, "минута", "минуты", "минут")}.` : ""}${ok === done || opts.mix ? "" : " Ошибки ждут в «Моих ошибках»."}</p>
           <div class="row">
-            ${more ? `<button class="btn" type="button" data-next-part>Следующая часть</button>`
+            ${opts.mix ? `<a class="btn" href="#/">На главную</a>`
+            : more ? `<button class="btn" type="button" data-next-part>Следующая часть</button>`
                    : nextSec ? `<button class="btn" type="button" data-next-topic>Следующая тема: ${esc(nextSec.nav)}</button>`
                              : `<button class="btn" type="button" data-go-review>Повторить мои ошибки</button>`}
-            <a class="btn quiet" href="#/">Закончить занятие</a>
+            ${opts.mix ? "" : `<a class="btn quiet" href="#/">Закончить занятие</a>`}
           </div>`;
         // A couple of sentences to write out from memory, right after the score.
         recallPool.slice(-1).forEach(r => askToWrite(result, r.sentence, r.cue));
