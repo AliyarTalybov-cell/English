@@ -6,6 +6,8 @@ import { esc } from "./engine.js";
 
 const SUGGEST = ["Что мне повторить сегодня?", "В каких темах я чаще ошибаюсь?", "Объясни проще последнюю тему"];
 const SUGGEST_TASK = ["Почему мой ответ неверный?", "Объясни правило проще", "Дай ещё пример"];
+const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
+const RETRY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>';
 const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const plural = (n, one, few, many) => {
   const t = Math.abs(n) % 100, d = t % 10;
@@ -55,8 +57,8 @@ export function openAsk({ context = null, onAuth } = {}) {
       <div class="ask-foot">
         <div class="ask-ctx" hidden><div class="ask-ctx-text"></div><button type="button" class="ask-close" data-ctx-clear aria-label="Не прикреплять задание">${X_ICON}</button></div>
         <form class="ask-form">
-          <textarea class="inp ask-input" rows="2" maxlength="2000" placeholder="Ваш вопрос" aria-label="Ваш вопрос"></textarea>
-          <button class="btn ask-send" type="submit">Спросить</button>
+          <textarea class="inp ask-input" rows="1" maxlength="2000" placeholder="Ваш вопрос" aria-label="Ваш вопрос"></textarea>
+          <button class="ask-send" type="submit" aria-label="Отправить" disabled>${SEND_ICON}</button>
         </form>
         <p class="ask-note"><span data-left></span>Вопросы и ваш прогресс передаются ИИ-помощнику.</p>
       </div>
@@ -69,10 +71,11 @@ export function openAsk({ context = null, onAuth } = {}) {
   const input = root.querySelector(".ask-input"), send = root.querySelector(".ask-send"), leftEl = root.querySelector("[data-left]");
   const body = root.querySelector(".ask-body");
   const showLeft = () => {
-    leftEl.textContent = left === null ? "" : left > 0
+    // The allowance is mentioned only when it is nearly used up.
+    leftEl.textContent = left === null || left > 5 ? "" : left > 0
       ? `Осталось ${left} ${plural(left, "вопрос", "вопроса", "вопросов")} на сегодня · `
       : "Вопросы на сегодня закончились, завтра будут новые · ";
-    send.disabled = busy || left === 0;
+    send.disabled = busy || left === 0 || !input.value.trim();
   };
   const scrollDown = () => { body.scrollTop = body.scrollHeight; };
   const add = (cls, html) => {
@@ -109,17 +112,12 @@ export function openAsk({ context = null, onAuth } = {}) {
     c.answer && `Мой ответ: ${c.answer}`, c.feedback && `Сайт написал: ${c.feedback}`,
   ].filter(Boolean).join("\n");
 
-  const ask = async text => {
-    text = text.trim();
-    if (!text || busy || left === 0) return;
+  // Sends the conversation; `wait` is the placeholder that becomes the answer (or the error with «Повторить»).
+  const request = async (wait, used) => {
     busy = true; showLeft();
-    const used = ctx;
-    add("ask-q", `${used ? `<small>${esc(used.task)}${used.answer ? ` · ваш ответ: ${esc(used.answer)}` : ""}</small>` : ""}${esc(text)}`);
-    // The task goes into the message itself, so later questions in this conversation still see it.
-    messages.push({ role: "user", text: used ? `${contextText(used)}\n\n${text}` : text });
-    setContext(null);
-    const wait = add("ask-a ask-wait", "<span></span><span></span><span></span>");
-    wait.setAttribute("aria-label", "Думаю");
+    wait.className = "ask-a ask-wait"; wait.setAttribute("aria-label", "Думаю");
+    wait.innerHTML = "<span></span><span></span><span></span>";
+    scrollDown();
     try {
       const res = await api.ask(messages, null);
       messages.push({ role: "assistant", text: res.answer });
@@ -127,16 +125,31 @@ export function openAsk({ context = null, onAuth } = {}) {
       wait.innerHTML = renderAnswer(res.answer);
       if (typeof res.left === "number") left = res.left;
     } catch (err) {
-      messages.pop();
-      if (used) setContext(used); // the question did not go through: keep the task attached for another try
       if (err instanceof AuthRequired) { close(); onAuth?.(err); return; }
       wait.className = "ask-a ask-err"; wait.removeAttribute("aria-label");
-      if (err.code === "limit") { left = 0; wait.textContent = "Вопросы на сегодня закончились. Завтра можно будет спросить снова."; }
-      else wait.textContent = navigator.onLine === false ? "Нет связи с интернетом. Проверьте подключение и попробуйте ещё раз."
-        : "Помощник сейчас перегружен. Попробуйте ещё раз через минуту — вопрос не списался.";
+      if (err.code === "limit") {
+        left = 0;
+        wait.textContent = "Вопросы на сегодня закончились. Завтра можно будет спросить снова.";
+      } else {
+        wait.innerHTML = `<p>${navigator.onLine === false ? "Нет связи с интернетом." : "Помощник сейчас перегружен, вопрос не списался."}</p>
+          <button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button>`;
+        wait.querySelector(".ask-retry").addEventListener("click", () => { if (!busy) request(wait, used); });
+      }
     } finally {
       busy = false; showLeft(); scrollDown();
     }
+  };
+
+  const ask = async text => {
+    text = text.trim();
+    if (!text || busy || left === 0) return;
+    const used = ctx;
+    add("ask-q", `${used ? `<small>${esc(used.task)}${used.answer ? ` · ваш ответ: ${esc(used.answer)}` : ""}</small>` : ""}${esc(text)}`);
+    // The task goes into the message itself, so later questions in this conversation still see it.
+    messages.push({ role: "user", text: used ? `${contextText(used)}\n\n${text}` : text });
+    setContext(null);
+    // A failed question stays in the conversation: «Повторить» sends it again.
+    await request(add("ask-a", ""), used);
   };
 
   const close = () => {
@@ -155,8 +168,12 @@ export function openAsk({ context = null, onAuth } = {}) {
     e.preventDefault();
     const text = input.value;
     input.value = "";
+    grow();
     ask(text);
   });
+  // The input grows with the text up to five lines.
+  const grow = () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; showLeft(); };
+  input.addEventListener("input", grow);
   // Enter sends, Shift+Enter makes a new line.
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); root.querySelector(".ask-form").requestSubmit(); }

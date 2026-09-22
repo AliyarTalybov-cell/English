@@ -1265,9 +1265,14 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-q small{display:block;margin-bottom:4px;font-size:13px;line-height:1.4;color:var(--muted);white-space:normal}
 .ask-a{font-size:15px;line-height:1.55;overflow-wrap:anywhere}
 .ask-a p+p,.ask-a p+ul,.ask-a ul+p{margin-top:8px}
-.ask-a ul{margin:6px 0 0;padding-left:18px;display:grid;gap:2px}
+.ask-a ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+.ask-a li{position:relative;padding-left:16px}
+.ask-a li::before{content:"";position:absolute;left:3px;top:.62em;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
 .ask-a code{font-family:var(--mono);font-size:.92em}
-.ask-err{color:var(--bad)}
+.ask-err{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;color:var(--bad)}
+.ask-retry{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--ink);font:inherit;font-size:14px;cursor:pointer;transition:border-color var(--t2) ease}
+.ask-retry:hover{border-color:var(--accent)}
+.ask-retry svg{width:16px;height:16px}
 .ask-wait{display:flex;gap:5px;padding:8px 0}
 .ask-wait span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:askDot 1.2s ease-in-out infinite}
 .ask-wait span:nth-child(2){animation-delay:.15s}
@@ -1281,7 +1286,10 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-ctx .ask-close{width:28px;height:28px}
 .ask-ctx .ask-close svg{width:14px;height:14px}
 .ask-form{display:flex;align-items:flex-end;gap:8px;padding:0 16px 8px}
-.ask-input{flex:1;min-height:44px;max-height:140px;resize:none;line-height:1.4}
-.ask-send:disabled{opacity:.5}
+.ask-send{flex:none;width:44px;height:44px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:var(--accent);color:var(--accent-ink);cursor:pointer;transition:opacity var(--t2) ease,transform var(--t1) ease}
+.ask-send svg{width:20px;height:20px}
+.ask-send:active{transform:scale(.94)}
+.ask-input{flex:1;min-height:44px;max-height:140px;resize:none;line-height:1.4;overflow-y:auto;border-radius:22px;padding:11px 16px}
+.ask-send:disabled{opacity:.35;cursor:default}
 .ask-note{padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:12px;line-height:1.4;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}}
