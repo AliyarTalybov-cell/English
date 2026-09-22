@@ -168,14 +168,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 /* «Почему так» next to a wrong typed answer: right of the task on a wide screen, below it on a phone */
 .mistake-card{display:grid;gap:12px;align-content:start;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);animation:dropIn var(--t2) var(--ease-out)}
 .mistake-card-head{font-size:14px;font-weight:600}
-.mistake-card-part{display:grid;gap:6px}
-.mistake-card-label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.mistake-card .formula{padding:0;border:0;background:none;gap:4px}
-.mistake-card .slot{font-size:13px;padding:4px 8px}
-.mistake-card .plus{display:none}
-.mistake-card-note{font-size:14px;line-height:1.45;color:var(--muted)}
-.mistake-card-rules{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px;line-height:1.45;color:var(--muted)}
-.mistake-card-rules b{color:var(--ink);font-weight:600}
 .item:not(.has-mistake-card) .mistake-card{display:none}
 @media (max-width:859px){.mistake-card{grid-row:auto!important}}
 @media (min-width:860px){.item.has-mistake-card{grid-template-columns:minmax(0,1fr) 260px;grid-template-rows:var(--mc-rows);column-gap:16px}.item.has-mistake-card>*{grid-column:1}.item.has-mistake-card>.mistake-card{grid-column:2}}
@@ -219,7 +211,6 @@ button.chip{border:0}
 /* on a phone «Поделиться» keeps only its icon so the header stays on one line */
 @media (max-width:480px){.hero-actions [data-share] span{display:none}}
 /* «Спросить у ИИ» inside the card: a question and its answer right there */
-.mistake-card-ai{padding-top:12px;border-top:1px solid var(--line)}
 .mistake-card{min-width:0;grid-template-columns:minmax(0,1fr)}
 .ask-inline{display:grid;gap:8px;min-width:0}
 .ask-inline-form{display:flex;align-items:center;gap:8px;min-width:0}

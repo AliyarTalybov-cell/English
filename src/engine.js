@@ -339,43 +339,6 @@ function mistakeKinds(it, v) {
   return [];
 }
 
-// «Как строится»: the word order of the sentence type, shown next to a wrong typed or assembled answer.
-const WH_WORDS = ["where", "what", "when", "who", "how", "why", "which", "whose"];
-const AUX_WORDS = ["am", "is", "are", "was", "were", "do", "does", "did", "have", "has", "can"];
-function orderSchema(answer) {
-  const first = answer.replace(/[.?!,]/g, "").split(" ")[0].toLowerCase();
-  const q = /\?\s*$/.test(answer);
-  if (q && WH_WORDS.includes(first)) return { note: "Вопрос: вопросительное слово, за ним вспомогательный глагол, потом кто.", slots: ["где · что · когда…", "!do · does · is · did…", "кто", "действие", "остальное"] };
-  if (q && AUX_WORDS.includes(first)) return { note: "Вопрос «да / нет» начинается со вспомогательного глагола.", slots: ["!Do · Does · Is · Can…", "кто", "действие", "остальное"] };
-  if (/n't\b|\bnot\b/i.test(answer)) return { note: "Отрицание стоит сразу после того, кто действует.", slots: ["кто", "!don't · isn't · can't…", "действие", "что · где · когда"] };
-  return { note: "В английском порядок строгий: сначала кто, потом действие, потом остальное.", slots: ["кто", "!действие", "что · кого", "где", "когда"] };
-}
-const slotsHtml = slots => `<div class="formula">${slots.map((x, i) =>
-  (i ? '<span class="plus">+</span>' : "") + `<span class="slot${x.startsWith("!") ? " be" : ""}">${esc(x.replace(/^!/, ""))}</span>`).join("")}</div>`;
-const TIME_WORDS = /\d|o'clock|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|morning|evening|afternoon|night|weekend/i;
-const ruleList = rows => `<ul class="mistake-card-rules">${rows.map(([w, t]) => `<li><b>${esc(w)}</b> ${esc(t)}</li>`).join("")}</ul>`;
-function whyParts(it, kinds, topicFormula) {
-  const parts = [];
-  for (const { kind } of kinds) {
-    if (kind === "order" || kind === "aux") {
-      const { note, slots } = orderSchema(it.a[0]);
-      if (kind === "order" && topicFormula) parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Формула темы</p>${topicFormula}</div>`);
-      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Порядок слов</p>${slotsHtml(slots)}<p class="mistake-card-note">${note}</p></div>`);
-    } else if (kind === "agree") {
-      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Кто действует → какая форма</p>${ruleList([
-        ["I · you · we · they", "have · do · are · work"], ["he · she · it", "has · does · is · works"]])}</div>`);
-    } else if (kind === "prep") {
-      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Предлоги</p>${ruleList(TIME_WORDS.test(it.a[0])
-        ? [["at", "время: at seven"], ["on", "дни: on Monday"], ["in", "месяцы, части дня: in June, in the morning"]]
-        : [["in", "внутри: in the box"], ["on", "на поверхности: on the wall"], ["at", "в точке: at home, at work"], ["under", "под: under the chair"]])}</div>`);
-    } else if (kind === "article") {
-      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Артикли</p>${ruleList([
-        ["a / an", "один из многих, упоминаем впервые: a car"], ["the", "понятно, какой именно: the door"], ["an", "перед гласным звуком: an apple"]])}</div>`);
-    }
-  }
-  return parts.slice(0, 2);
-}
-
 function orderHint(it, tries) {
   const words = it.a[0].replace(/[.?!]$/, "").split(" ");
   const isQ = it.a[0].endsWith("?");
@@ -1039,18 +1002,6 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
   const precheckTopic = ["tests", "texts"].includes(lesson.slug) ? null
     : S.find(sec => !sec.groups.some((g, gi) => g.items.some((_, ii) => progress[`${sec.id}-${gi}-${ii}`])))?.id;
 
-  // The first formula of a topic's explanation, reused next to wrong answers.
-  const formulaCache = {};
-  const topicFormula = id => {
-    const secId = id.replace(/-\d+-\d+$/, "");
-    if (!(secId in formulaCache)) {
-      const tpl = document.createElement("template");
-      tpl.innerHTML = S.find(x => x.id === secId)?.theory || "";
-      formulaCache[secId] = tpl.content.querySelector(".formula")?.outerHTML || "";
-    }
-    return formulaCache[secId];
-  };
-
   function renderItem(it, id, review, onDone) {
     const li = document.createElement("li");
     li.className = "item"; li.id = review ? "rev-" + id : id;
@@ -1121,26 +1072,20 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // «Почему так»: a rule about the mistake actually made (written and assembled sentences), and under it
-      // a question to the AI helper right in the card. On a wide screen to the right of the task, on a phone below it.
-      if (v === undefined) return; // «Используйте все слова» and similar hints keep the card as it is
-      const written = (it.t === "input" && it.a[0].includes(" ")) || it.t === "order";
-      const parts = written ? whyParts(it, mistakeKinds(it, v), topicFormula(id)) : [];
-      const inline = opts.askInline ? opts.askInline({
+      // «Почему так»: right after a wrong answer the AI helper explains the mistake in a card next to the task
+      // (on a wide screen to the right, on a phone below). The student can ask more there or continue in the chat.
+      if (v === undefined || !opts.askInline) return; // «Используйте все слова» and similar hints keep the card as it is
+      const inline = opts.askInline({
         lesson: lesson.title, topic: S.find(x => x.id === id.replace(/-\d+-\d+$/, ""))?.nav || "",
         task: it.q ? it.q.replace(/_{3,}/g, "…") : it.t === "order" ? `Соберите предложение из слов: ${it.w.join(" / ")}` : "",
         answer: v, feedback: msg,
-      }) : null;
+      });
       li.querySelector(".mistake-card")?.remove();
-      li.classList.toggle("has-mistake-card", !!(parts.length || inline));
-      if (!parts.length && !inline) return;
+      li.classList.add("has-mistake-card");
       const why = document.createElement("aside");
       why.className = "mistake-card";
-      why.innerHTML = `<p class="mistake-card-head">${parts.length ? "Почему так" : "Спросить у ИИ"}</p>${parts.join("")}`;
-      if (inline) {
-        if (parts.length) why.insertAdjacentHTML("beforeend", '<p class="mistake-card-label mistake-card-ai">Спросить у ИИ</p>');
-        why.appendChild(inline);
-      }
+      why.innerHTML = `<p class="mistake-card-head">Почему так</p>`;
+      why.appendChild(inline);
       // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
       const rows = li.children.length;
       li.style.setProperty("--mc-rows", `repeat(${rows}, auto) 1fr`);

@@ -193,27 +193,28 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
   if (matchMedia("(min-width: 860px)").matches) setTimeout(() => input.focus(), 250);
 }
 
-// «Спросить у ИИ» inside the task card after a mistake: a question and its answer right there, without the panel.
+// «Почему так» after a mistake: the helper explains it right in the task card, without the panel.
 // The task, the answer and the site's hint go with the first question; «Продолжить в чате» carries it all to the panel.
-export function inlineAsk({ context, onAuth }) {
+export function inlineAsk({ context, onAuth, auto = true }) {
   const history = [];
   let busy = false;
   const box = document.createElement("div");
   box.className = "ask-inline";
+  // The explanation comes first; under it — a field for a follow-up question.
   box.innerHTML = `
+    <div class="ask-inline-out" aria-live="polite" hidden></div>
     <form class="ask-inline-form">
-      <input class="inp ask-inline-input" type="text" maxlength="500" autocomplete="off" placeholder="Что непонятно?" aria-label="Вопрос к ИИ об этом задании">
+      <input class="inp ask-inline-input" type="text" maxlength="500" autocomplete="off" placeholder="${auto ? "Что ещё непонятно?" : "Что непонятно?"}" aria-label="Вопрос к ИИ об этом задании">
       <button class="ask-send" type="submit" aria-label="Спросить у ИИ" disabled>${SEND_ICON}</button>
     </form>
-    <button type="button" class="ask-chip ask-inline-chip">Почему мой ответ неверный?</button>
-    <div class="ask-inline-out" aria-live="polite" hidden></div>`;
+    ${auto ? "" : `<button type="button" class="ask-chip ask-inline-chip">Почему мой ответ неверный?</button>`}`;
   const form = box.querySelector("form"), input = box.querySelector("input"), send = box.querySelector(".ask-send");
   const chip = box.querySelector(".ask-inline-chip"), out = box.querySelector(".ask-inline-out");
   const sync = () => { send.disabled = busy || !input.value.trim(); };
   input.addEventListener("input", sync);
 
   const request = async () => {
-    busy = true; sync(); chip.hidden = true;
+    busy = true; sync(); if (chip) chip.hidden = true;
     out.hidden = false;
     out.innerHTML = `<div class="ask-a ask-wait" aria-label="Думаю"><span></span><span></span><span></span></div>`;
     try {
@@ -231,18 +232,20 @@ export function inlineAsk({ context, onAuth }) {
       busy = false; sync();
     }
   };
-  const ask = text => {
+  const ask = (text, shown = text) => {
     text = text.trim();
     if (!text || busy) return;
     // A question that did not go through is replaced by the new one.
     if (history.at(-1)?.role === "user") history.pop();
     // The first question carries the task; later ones continue the same conversation.
     const first = !history.length;
-    history.push({ role: "user", text: first ? `${contextText(context)}\n\n${text}` : text, shown: text, context: first ? context : null });
+    history.push({ role: "user", text: first ? `${contextText(context)}\n\n${text}` : text, shown, context: first ? context : null });
     input.value = "";
     request();
   };
   form.addEventListener("submit", e => { e.preventDefault(); ask(input.value); });
-  chip.addEventListener("click", () => ask(chip.textContent));
+  chip?.addEventListener("click", () => ask(chip.textContent));
+  // Right after a wrong answer the helper explains the mistake without waiting to be asked.
+  if (auto) ask("Почему мой ответ неверный? Объясни коротко, в чём ошибка и какое правило здесь работает.", "Почему мой ответ неверный?");
   return box;
 }

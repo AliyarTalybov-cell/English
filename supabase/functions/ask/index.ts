@@ -1,11 +1,12 @@
 // «Спросить»: the students' AI helper. A student asks about English or about their own progress;
 // the model answers in Russian and reads the student's data through read-only tools.
 // The database is queried with the student's own session, so row-level security keeps it to their data.
-// The model is Google Gemini; its key is a Supabase secret (GEMINI_API_KEY) and never reaches the browser.
+// Models come through OpenRouter; its key is a Supabase secret (OPENROUTER_API_KEY) and never reaches the browser.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Tried in this order: when one is overloaded (503) or out of quota (429), the next one answers.
-const MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+// Tried in this order: a cheap paid model first; when it is out of credit (402), rate-limited (429)
+// or unavailable (5xx, timeout), the free ones answer.
+const MODELS = ["google/gemini-3.1-flash-lite", "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free"];
 const MAX_TURNS = 12;        // earlier messages of the conversation sent back for context
 const MAX_TEXT = 2000;       // characters per message
 const MAX_TOOL_ROUNDS = 6;
@@ -64,15 +65,8 @@ const TOOL_LIST = [
   },
 ];
 
-// Gemini function declarations: the same tools, without JSON-schema extras it does not take.
-const TOOLS = [{
-  functionDeclarations: TOOL_LIST.map(t => {
-    const props = t.input_schema.properties as Record<string, unknown>;
-    return Object.keys(props).length
-      ? { name: t.name, description: t.description, parameters: { type: "object", properties: props, ...(t.input_schema.required ? { required: t.input_schema.required } : {}) } }
-      : { name: t.name, description: t.description };
-  }),
-}];
+// Tools in the OpenAI-style format OpenRouter takes.
+const TOOLS = TOOL_LIST.map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } }));
 
 // ---------- lesson content helpers ----------
 type Item = { t: string; q?: string; a: string | string[]; o?: string[]; w?: number; c?: string; ex?: string };
@@ -102,15 +96,20 @@ Deno.serve(async req => {
   const user = userData?.user;
   if (!user) return json({ error: "auth" }, 401);
 
-  let body: { messages?: { role: string; text: string }[]; context?: Record<string, string> };
+  let body: { messages?: { role: string; text: string }[]; context?: Record<string, string>; debug?: boolean };
   try { body = await req.json(); } catch { return json({ error: "bad_request" }, 400); }
+  // Model, status and time of every call to the model: always in the log, and in the answer when debugging.
+  const attempts: string[] = [];
+  const reply = (b: Record<string, unknown>, status = 200) => {
+    if (attempts.length) console.log("ask attempts", status, attempts.join(" | "));
+    return json(body.debug ? { ...b, attempts } : b, status);
+  };
   const history = (body.messages || [])
     .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.text === "string" && m.text.trim())
     .slice(-MAX_TURNS)
     .map(m => ({ role: m.role as "user" | "assistant", content: m.text.slice(0, MAX_TEXT) }));
-  // (converted to Gemini's { role: "user" | "model", parts } below)
   while (history.length && history[0].role !== "user") history.shift();
-  if (!history.length || history[history.length - 1].role !== "user") return json({ error: "bad_request" }, 400);
+  if (!history.length || history[history.length - 1].role !== "user") return reply({ error: "bad_request" }, 400);
 
   // A task the student asked about from the lesson: its text and their answer go with the question.
   const ctx = body.context;
@@ -124,8 +123,8 @@ Deno.serve(async req => {
   }
 
   const { data: left, error: takeError } = await sb.rpc("ai_take_question");
-  if (takeError) return json({ error: "server" }, 500);
-  if (left < 0) return json({ error: "limit", left: 0 }, 429);
+  if (takeError) return reply({ error: "server" }, 500);
+  if (left < 0) return reply({ error: "limit", left: 0 }, 429);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const refund = () => admin.rpc("ai_refund_question", { p_user: user.id }).then(() => {}, () => {});
@@ -183,8 +182,8 @@ Deno.serve(async req => {
     return "Неизвестный инструмент.";
   };
 
-  // ---------- the conversation with Gemini ----------
-  const key = Deno.env.get("GEMINI_API_KEY");
+  // ---------- the conversation with the model (OpenRouter) ----------
+  const key = Deno.env.get("OPENROUTER_API_KEY");
   // The whole answer must fit well inside the browser's 120 s wait; each model attempt gets at most 20 s.
   const deadline = Date.now() + 95_000;
   // A short progress summary goes with every question, so most questions about progress need no tool call.
@@ -196,62 +195,62 @@ Deno.serve(async req => {
   } catch { /* the tools can still fetch it */ }
   const system = summary ? `${SYSTEM}\n\nПрогресс ученика сейчас:\n${summary}` : SYSTEM;
   // deno-lint-ignore no-explicit-any
-  const generate = async (contents: any[]) => {
+  const complete = async (messages: any[]) => {
     let last = "";
     for (const model of MODELS) {
       const time = Math.min(20_000, deadline - Date.now());
       if (time < 3_000) break;
+      const t0 = Date.now();
       try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
-          headers: { "x-goog-api-key": key!, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: system }] }, contents, tools: TOOLS,
-            // Short explanations at A1–A2 need little deliberation; low thinking keeps answers quick.
-            generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
-          }),
+          headers: {
+            Authorization: `Bearer ${key}`, "Content-Type": "application/json",
+            "HTTP-Referer": "https://english-platform-orcin.vercel.app", "X-Title": "English",
+          },
+          body: JSON.stringify({ model, messages, tools: TOOLS, max_tokens: 1500 }),
           signal: AbortSignal.timeout(time),
         });
-        if (r.ok) return await r.json();
-        last = `${model} ${r.status} ${(await r.text()).slice(0, 200)}`;
-        if (r.status !== 429 && r.status !== 503) break;
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && data.choices?.[0]?.message) { attempts.push(`${model} 200 ${Date.now() - t0}ms`); return data.choices[0].message; }
+        last = `${model} ${r.status} ${JSON.stringify(data.error || data).slice(0, 160)}`;
+        attempts.push(`${last} ${Date.now() - t0}ms`);
+        if (r.ok || r.status === 402 || r.status === 408 || r.status === 429 || r.status >= 500) continue;
+        break;
       } catch (e) {
         last = `${model} ${String((e as Error).message || e).slice(0, 120)}`; // timeout or network: try the next model
+        attempts.push(`${last} ${Date.now() - t0}ms`);
       }
     }
     throw new Error(last || "no time left");
   };
   try {
     // deno-lint-ignore no-explicit-any
-    const contents: any[] = history.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
+    const messages: any[] = [{ role: "system", content: system }, ...history];
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      const data = await generate(contents);
-      const cand = data.candidates?.[0];
-      if (!cand?.content?.parts?.length) {
-        return json({ answer: "На этот вопрос я не отвечу. Давайте вернёмся к английскому: спросите про правило, слово или свою ошибку.", left });
-      }
-      // deno-lint-ignore no-explicit-any
-      const parts: any[] = cand.content.parts;
-      const calls = parts.filter(p => p.functionCall);
+      const msg = await complete(messages);
+      const calls = msg.tool_calls || [];
       if (!calls.length) {
-        const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
-        return json({ answer: text || "Не получилось сформулировать ответ. Попробуйте спросить иначе.", left });
+        const text = String(msg.content || "").trim();
+        return reply({ answer: text || "Не получилось сформулировать ответ. Попробуйте спросить иначе.", left });
       }
-      // The model's turn goes back unchanged (it carries thought signatures), then the tool results.
-      contents.push(cand.content);
-      const results = [];
-      for (const { functionCall: fc } of calls) {
-        let response;
-        try { response = { result: await run(fc.name, fc.args || {}) }; }
-        catch (e) { response = { error: `Ошибка чтения данных: ${String((e as Error).message || e)}` }; }
-        results.push({ functionResponse: { ...(fc.id ? { id: fc.id } : {}), name: fc.name, response } });
+      messages.push({ role: "assistant", content: msg.content || "", tool_calls: calls });
+      for (const call of calls) {
+        let content;
+        try {
+          let args = {};
+          try { args = JSON.parse(call.function?.arguments || "{}"); } catch { /* no arguments */ }
+          content = JSON.stringify(await run(call.function?.name, args));
+        } catch (e) {
+          content = `Ошибка чтения данных: ${String((e as Error).message || e)}`;
+        }
+        messages.push({ role: "tool", tool_call_id: call.id, content });
       }
-      contents.push({ role: "user", parts: results });
     }
-    return json({ answer: "Вопрос оказался слишком сложным. Попробуйте разбить его на части.", left });
+    return reply({ answer: "Вопрос оказался слишком сложным. Попробуйте разбить его на части.", left });
   } catch (e) {
     console.error("ask failed", e);
     await refund();
-    return json({ error: "unavailable" }, 503);
+    return reply({ error: "unavailable" }, 503);
   }
 });
