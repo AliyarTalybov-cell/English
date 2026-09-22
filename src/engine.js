@@ -458,7 +458,7 @@ function dictationPanel(sec) {
       if (ok) right++;
       setFeedback(fb, "fb " + (ok ? "good" : "shown"),
         `<span class="head">${ok ? "Верно!" : "Правильный ответ:"}</span><span class="ans">${esc(cur.text)}</span>${cur.ru ? `<span>${esc(cur.ru)}</span>` : ""}`);
-      box.querySelectorAll("button, input").forEach(b => { if (!b.dataset.close) b.disabled = true; });
+      box.querySelectorAll("button, input").forEach(b => { if (!b.hasAttribute("data-close")) b.disabled = true; });
       const go = document.createElement("button");
       go.type = "button"; go.className = "btn"; go.textContent = i + 1 < list.length ? "Дальше" : "Итог";
       go.addEventListener("click", next);
@@ -1104,7 +1104,8 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         `<span class="head">${head}</span>${showAns ? `<span class="ans">${esc(answerText(it))}</span>` : ""}<span>${esc(it.ex || "")}</span>`, !silent);
       const spoken = spokenAnswer(it);
       if (spoken && canSpeak()) fb.querySelector(".head").append(sayButton(spoken, "Послушать ответ"));
-      if (!review && !silent && status === "ok" && it.t === "choice" && it.q.includes("___") && spoken && spoken.trim().split(/\s+/).length >= 3) {
+      // Only a plain sentence is worth writing out: not «'s = ___», not a mini-dialogue with «—».
+      if (!review && !silent && status === "ok" && it.t === "choice" && it.q.includes("___") && !/[—=]/.test(it.q) && spoken && spoken.trim().split(/\s+/).length >= 3) {
         recallPool.push({ sentence: spoken, cue: qHtml(it) }); // asked at the end of the portion, not in the middle of it
       }
     };
@@ -1146,11 +1147,18 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       // Подсказка не считается ошибкой: сначала первое слово, потом начало фразы.
       let hintStep = 0;
       li.querySelector("[data-hint]").addEventListener("click", () => {
+        // The hint never gives the whole answer away: a one-word answer shows its first letters, a phrase — its first words.
         const words = it.a[0].split(" ");
         hintStep = Math.min(hintStep + 1, 2);
-        const part = hintStep === 1 ? words.slice(0, 1) : words.slice(0, Math.max(2, Math.ceil(words.length / 2)));
-        const tail = part.length < words.length ? " …" : "";
-        setFeedback(fb, "fb shown", `<span class="head">Подсказка</span><span class="ans">${esc(part.join(" "))}${tail}</span>${hintStep === 1 && words.length > 1 ? '<span class="tip">Нажмите ещё раз, чтобы увидеть больше.</span>' : ""}`);
+        let shown;
+        if (words.length === 1) {
+          const w = words[0];
+          shown = w.slice(0, hintStep === 1 ? 1 : Math.max(2, Math.ceil(w.length / 2))) + "…";
+        } else {
+          const n = hintStep === 1 ? 1 : Math.min(words.length - 1, Math.max(2, Math.ceil(words.length / 2)));
+          shown = words.slice(0, n).join(" ") + " …";
+        }
+        setFeedback(fb, "fb shown", `<span class="head">Подсказка</span><span class="ans">${esc(shown)}</span>${hintStep === 1 ? '<span class="tip">Нажмите ещё раз, чтобы увидеть больше.</span>' : ""}`);
         inp.focus({ preventScroll: true });
       });
       inp.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
