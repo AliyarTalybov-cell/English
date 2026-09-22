@@ -41,7 +41,7 @@ const taskLine = c => `<small>${esc(c.task)}${c.answer ? ` · ваш ответ:
 
 let panel = null;
 
-export function openAsk({ context = null, history = null, onAuth } = {}) {
+export function openAsk({ context = null, history = null, followUp = "", onAuth } = {}) {
   // «Продолжить в чате» always shows its conversation: a panel left open is replaced.
   if (panel && history) panel.close();
   else if (panel) { if (context) panel.askAbout(context); return; }
@@ -89,13 +89,20 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
       : "Вопросы на сегодня закончились, завтра будут новые · ";
     send.disabled = busy || left === 0 || !input.value.trim();
   };
+  // New messages come into view without yanking the reader: the student's own question scrolls to the bottom,
+  // an answer is shown from its question down, so a long answer is read from the top.
   const scrollDown = () => { body.scrollTop = body.scrollHeight; };
+  const showAnswer = li => {
+    const q = li.previousElementSibling || li;
+    const offset = q.getBoundingClientRect().top - body.getBoundingClientRect().top - 12;
+    if (li.getBoundingClientRect().bottom > body.getBoundingClientRect().bottom) body.scrollTop += offset;
+  };
   const add = (cls, html) => {
     const li = document.createElement("li");
     li.className = cls; li.innerHTML = html;
     log.appendChild(li);
     empty.hidden = true;
-    scrollDown();
+    if (cls.startsWith("ask-q") || cls.includes("ask-wait")) scrollDown();
     return li;
   };
 
@@ -131,6 +138,7 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
       messages.push({ role: "assistant", text: res.answer });
       wait.className = "ask-a"; wait.removeAttribute("aria-label");
       wait.innerHTML = renderAnswer(res.answer);
+      showAnswer(wait);
       if (typeof res.left === "number") left = res.left;
     } catch (err) {
       if (err instanceof AuthRequired) { close(); onAuth?.(err); return; }
@@ -144,7 +152,7 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
         wait.querySelector(".ask-retry").addEventListener("click", () => { if (!busy) request(wait, used); });
       }
     } finally {
-      busy = false; showLeft(); scrollDown();
+      busy = false; showLeft();
     }
   };
 
@@ -160,10 +168,22 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
     await request(add("ask-a", ""), used);
   };
 
+  // On a phone the panel keeps to the visible part of the screen, so the keyboard does not push it around.
+  const vv = window.visualViewport;
+  const fit = () => {
+    if (!vv || matchMedia("(min-width: 860px)").matches) { root.style.top = root.style.height = root.style.bottom = ""; return; }
+    root.style.top = `${vv.offsetTop}px`; root.style.height = `${vv.height}px`; root.style.bottom = "auto";
+  };
+  vv?.addEventListener("resize", fit);
+  vv?.addEventListener("scroll", fit);
+  fit();
+
   const close = () => {
     root.classList.remove("open");
     document.documentElement.classList.remove("no-scroll");
     document.removeEventListener("keydown", onKey);
+    vv?.removeEventListener("resize", fit);
+    vv?.removeEventListener("scroll", fit);
     setTimeout(() => root.remove(), 300);
     panel = null;
   };
@@ -195,7 +215,10 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
     if (m.role === "user") add("ask-q", `${m.context ? taskLine(m.context) : ""}${esc(m.shown || m.text)}`);
     else add("ask-a", renderAnswer(m.text));
   }
-  if (matchMedia("(min-width: 860px)").matches) setTimeout(() => input.focus(), 250);
+  if (history?.length) scrollDown();
+  // A follow-up typed in the task card continues here as the next question.
+  if (followUp) ask(followUp);
+  else if (matchMedia("(min-width: 860px)").matches) setTimeout(() => input.focus(), 250);
 }
 
 // «Почему так» after a mistake: the helper explains it right in the task card, without the panel.
@@ -209,7 +232,7 @@ export function inlineAsk({ context, onAuth, auto = true }) {
   box.innerHTML = `
     <div class="ask-inline-out" aria-live="polite" hidden></div>
     <form class="ask-inline-form">
-      <input class="inp ask-inline-input" type="text" maxlength="500" autocomplete="off" placeholder="${auto ? "Что ещё непонятно?" : "Что непонятно?"}" aria-label="Вопрос к ИИ об этом задании">
+      <input class="inp ask-inline-input" type="text" maxlength="500" autocomplete="off" placeholder="${auto ? "Спросить ещё в чате" : "Что непонятно?"}" aria-label="Вопрос к ИИ об этом задании">
       <button class="ask-send" type="submit" aria-label="Спросить у ИИ" disabled>${SEND_ICON}</button>
     </form>
     ${auto ? "" : `<button type="button" class="ask-chip ask-inline-chip">Почему мой ответ неверный?</button>`}`;
@@ -248,7 +271,16 @@ export function inlineAsk({ context, onAuth, auto = true }) {
     input.value = "";
     request();
   };
-  form.addEventListener("submit", e => { e.preventDefault(); ask(input.value); });
+  // A follow-up goes to the chat with the whole conversation: the card keeps one explanation and does not jump.
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = ""; sync(); input.blur();
+    if (!history.length) { ask(text); return; } // nothing asked yet (the card was opened without the automatic question)
+    if (history.at(-1)?.role === "user") history.pop(); // the explanation did not come: the chat asks again
+    openAsk({ history, followUp: text, onAuth });
+  });
   chip?.addEventListener("click", () => ask(chip.textContent));
   // Right after a wrong answer the helper explains the mistake without waiting to be asked.
   if (auto) ask("Почему мой ответ неверный? Объясни коротко, в чём ошибка и какое правило здесь работает.", "Почему мой ответ неверный?");

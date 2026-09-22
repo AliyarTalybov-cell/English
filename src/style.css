@@ -214,7 +214,7 @@ button.chip{border:0}
 .mistake-card{min-width:0;grid-template-columns:minmax(0,1fr)}
 .ask-inline{display:grid;gap:8px;min-width:0}
 .ask-inline-form{display:flex;align-items:center;gap:8px;min-width:0}
-.ask-inline-input{flex:1 1 0;width:0;min-width:0;min-height:40px;border-radius:20px;padding:8px 14px;font-size:15px}
+.ask-inline-input{flex:1 1 0;width:0;min-width:0;min-height:40px;border-radius:20px;padding:8px 14px;font-size:16px}
 .ask-inline .ask-send{width:40px;height:40px}
 .ask-inline .ask-send svg{width:18px;height:18px}
 .ask-inline-chip{justify-self:start;padding:6px 10px;font-size:13px}
@@ -1245,12 +1245,12 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 /* ---------- «Спросить»: the AI helper panel (bottom sheet on a phone, right panel on a wide screen) ---------- */
 .ask-backdrop{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0);transition:background-color var(--t2) ease}
 .ask-backdrop.open{background:rgba(0,0,0,.4)}
-.ask-panel{display:flex;flex-direction:column;width:100%;max-width:560px;height:min(85vh,720px);height:min(85dvh,720px);background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.25);transform:translateY(100%);transition:transform var(--t3) var(--ease-out)}
+.ask-panel{display:flex;flex-direction:column;width:100%;max-width:560px;height:min(85vh,720px);height:min(85dvh,720px);max-height:calc(100% - 12px);background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.25);transform:translateY(100%);transition:transform var(--t3) var(--ease-out)}
 .ask-backdrop.open .ask-panel{transform:none}
 @media (min-width:860px){
   .ask-backdrop{align-items:stretch;justify-content:flex-end}
   .ask-backdrop.open{background:rgba(0,0,0,.25)}
-  .ask-panel{max-width:420px;height:100%;border-radius:0;border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(0,0,0,.2);transform:translateX(100%)}
+  .ask-panel{max-width:420px;height:100%;max-height:none;border-radius:0;border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(0,0,0,.2);transform:translateX(100%)}
 }
 .ask-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--line)}
 .ask-head h2{margin:0;font-size:19px}
