@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 // The course links lessons together: every new topic says where it was met before.
 const link = text => sticky(text, "Связь с курсом");
@@ -309,5 +310,8 @@ const lesson = {
     },
   ],
 };
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

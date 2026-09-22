@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const lesson = {
   slug: "questions-do-does",
@@ -299,5 +300,8 @@ extend(lesson, "words", html(
   ch("«Сегодня туман.»", ["It's foggy today.", "Is foggy today.", "It foggy today."], "It's foggy today.", "Погода — It is + foggy."),
   ch("She never goes out. She's a real ___.", ["home lover", "house love", "home loving"], "home lover", "a home lover — домосед."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

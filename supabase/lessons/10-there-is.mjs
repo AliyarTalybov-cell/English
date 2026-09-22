@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const link = text => sticky(text, "Связь с курсом");
 
@@ -223,5 +224,8 @@ extend(lesson, "home", null, group("Ещё слова", [
   ch("«сад» — ___", ["garden", "hall", "balcony"], "garden", "garden — сад."),
   ch("Where do you sleep? — In the ___.", ["bedroom", "kitchen", "hall"], "bedroom", "Спим в спальне."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

@@ -181,4 +181,7 @@ export const CORE = {
   hand: "рука (кисть)", sushi: "суши", classroom: "класс (комната)", dear: "дорогой, дорогая", tourist: "турист", pencil: "карандаш",
   "we've": "we have — у нас есть", "they've": "they have — у них есть", rock: "рок (музыка); камень", zero: "ноль", tree: "дерево", trees: "деревья",
   best: "лучший", comedy: "комедия", comedies: "комедии",
+  store: "магазин (амер.)", awful: "ужасный", into: "в; увлекаться (be into)", group: "группа", jumper: "джемпер, свитер", motorcycle: "мотоцикл",
+  cycling: "езда на велосипеде", movie: "фильм (амер.)", begin: "начинать(ся)", begins: "начинается", anyone: "кто-нибудь, никто (в отрицании)",
+  elevator: "лифт (амер.)", nearby: "поблизости", slowly: "медленно", slower: "медленнее",
 };

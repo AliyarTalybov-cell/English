@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const lesson = {
   slug: "whose",
@@ -325,5 +326,8 @@ extend(lesson, "words", html(
   ch("«Я покупаю свежие продукты на рынке.»", ["I buy fresh food at the market.", "I buy fresh products at the market.", "I buy freshs food at the market."], "I buy fresh food at the market.", "Про еду естественнее fresh food. products — скорее «товары»."),
   ch("Don't forget ___ bottle of water!", ["a", "an", "some"], "a", "a bottle of water — бутылку можно посчитать."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

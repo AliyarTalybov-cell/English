@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const link = text => sticky(text, "Связь с курсом");
 
@@ -233,5 +234,8 @@ extend(lesson, "like", null, group("Выберите правильный вар
   ch("«Мне не нравятся эти туфли.»", ["I don't like these shoes.", "I don't like this shoes.", "I am not like these shoes."], "I don't like these shoes.", "don't like + these shoes."),
   ch("She likes ___ very much.", ["it", "him it", "them very"], "it", "like it very much."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

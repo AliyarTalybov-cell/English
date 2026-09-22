@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const link = text => sticky(text, "Связь с курсом");
 
@@ -239,5 +240,8 @@ extend(lesson, "vs", null, group("Сейчас или обычно?", [
   ch("How often ___ you go to the gym?", ["do", "are"], "do", "How often → Present Simple."),
   inp("«Обычно я работаю в офисе, но сегодня работаю дома.»", ["I usually work in the office, but today I'm working at home.", "I usually work in an office, but today I'm working at home."], "usually work + today I'm working.", "Переведите на английский"),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

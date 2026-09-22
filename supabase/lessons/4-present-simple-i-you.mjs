@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const lesson = {
   slug: "present-simple-i-you-we-they",
@@ -324,5 +325,8 @@ extend(lesson, "free", html(
   ch("Read the ___ of the article first. It tells you what it's about.", ["heading", "weekend", "oatmeal"], "heading", "heading — заголовок."),
   ch("«Я ем кашу на завтрак.»", ["I have porridge for breakfast.", "I do porridge for breakfast.", "I have porridge on breakfast."], "I have porridge for breakfast.", "have … for breakfast."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

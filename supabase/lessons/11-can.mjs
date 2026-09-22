@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const link = text => sticky(text, "Связь с курсом");
 
@@ -184,5 +185,8 @@ extend(lesson, "ask", null, group("Что ответить?", [
   ch("— Can I sit here? — Нет, извините, тут занято.", ["Sorry, it's taken.", "No, I can't.", "No, you don't."], "Sorry, it's taken.", "Вежливый отказ."),
   ch("— Can you say that again, please? — ___", ["Sure. I said…", "Yes, I can say.", "No, I don't."], "Sure. I said…", "Просьбу повторить принимают словом Sure."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

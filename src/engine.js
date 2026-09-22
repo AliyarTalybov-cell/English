@@ -3,7 +3,7 @@
 import { canSpeak, speakQueue, speakEnglish, stopSpeech, pauseSpeech, resumeSpeech, onPlayerChange, theoryQueue, languageRuns, getRate, setRate, listVoices, voiceId, currentVoice, setVoice } from "./speech.js";
 import { translate } from "./translate.js";
 
-const EXP = {"i'm":"i am","you're":"you are","we're":"we are","they're":"they are","he's":"he is","she's":"she is","it's":"it is","what's":"what is","where's":"where is","who's":"who is","how's":"how is","when's":"when is","that's":"that is","isn't":"is not","aren't":"are not","wasn't":"was not","weren't":"were not","don't":"do not","doesn't":"does not","haven't":"have not","hasn't":"has not","i've":"i have","you've":"you have","we've":"we have","they've":"they have","didn't":"did not","couldn't":"could not","won't":"will not","let's":"let us"};
+const EXP = {"i'm":"i am","you're":"you are","we're":"we are","they're":"they are","he's":"he is","she's":"she is","it's":"it is","what's":"what is","where's":"where is","who's":"who is","how's":"how is","when's":"when is","that's":"that is","isn't":"is not","aren't":"are not","wasn't":"was not","weren't":"were not","don't":"do not","doesn't":"does not","haven't":"have not","hasn't":"has not","i've":"i have","you've":"you have","we've":"we have","they've":"they have","didn't":"did not","couldn't":"could not","won't":"will not","let's":"let us","there's":"there is","can't":"can not","cannot":"can not","i'd":"i would"};
 const norm = s => s.toLowerCase().replace(/[’‘`´]/g, "'").replace(/[.?!,;:]/g, " ").replace(/\s+/g, " ").trim().split(" ").map(w => EXP[w] || w).join(" ");
 export const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);

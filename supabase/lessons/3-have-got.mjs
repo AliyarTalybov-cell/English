@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const lesson = {
   slug: "have-got",
@@ -317,5 +318,8 @@ extend(lesson, "words", html(
   ch("Yesterday I ___ a long email to my boss.", ["write", "wrote", "writes"], "wrote", "yesterday → прошлое → wrote."),
   ch("I ___ in my diary every evening.", ["write", "wrote", "writer"], "write", "every evening — обычно → write."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;

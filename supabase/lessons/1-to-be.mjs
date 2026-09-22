@@ -2,6 +2,7 @@
 // so existing item ids and students' progress stay the same.
 import { readFileSync } from "node:fs";
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const base = JSON.parse(readFileSync(new URL("./1-to-be.base.json", import.meta.url), "utf8"));
 
@@ -157,6 +158,9 @@ const words2 = {
 
 const sections = base.sections.slice();
 sections.splice(sections.findIndex(s => s.id === "final"), 0, intro, words2);
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation({ slug: "to-be", sections });
 
 export default {
   slug: base.slug,

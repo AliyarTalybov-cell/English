@@ -1,4 +1,5 @@
 import { ch, inp, fix, ord, group, formula, table, examples, pit, no, yes, sticky, h3, p, compare, ng, html, extend } from "./_helpers.mjs";
+import { addTranslation } from "./translate.mjs";
 
 const lesson = {
   slug: "present-simple-he-she-it",
@@ -298,5 +299,8 @@ extend(lesson, "plus", html(
   ch("finishes — ___", ["2 слога", "3 слога"], "3 слога", "fi·ni·shes — /ɪz/ добавляет слог."),
   ch("plays — ___", ["1 слог", "2 слога"], "1 слог", "plays /z/ — один слог."),
 ]));
+
+// «Переведите с русского» goes last in every topic; add new groups below this line so item ids stay the same.
+addTranslation(lesson);
 
 export default lesson;
