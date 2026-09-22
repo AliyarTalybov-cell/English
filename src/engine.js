@@ -293,14 +293,17 @@ function diagnose(it, v, tries) {
   if (e.includes("from") && !u.includes("from")) return "Не хватает from — «откуда». Оно стоит в конце вопроса.";
   if (e.includes("in") && !u.includes("in")) return "Не хватает предлога in.";
   if (e.includes("it") && !u.includes("it")) return "Пропущено подлежащее it.";
-  const word = wordDiff(it, u);
-  if (word) return word;
+  const kinds = mistakeKinds(it, v).filter(k => k.kind !== "order");
+  if (kinds.length) return kinds.map(k => k.text).join(" ");
   if (tries >= 1 && e[0] !== u[0]) return `Подсказка: предложение начинается с «${cap(it.a[0].split(" ")[0])}».`;
   return "Сравните с формулой в объяснении темы. Проверьте каждое слово.";
 }
 
-// Word-by-word comparison with the closest accepted answer: names the kind of mistake without giving the answer away.
+// Word-by-word comparison with the closest accepted answer: names the kinds of mistake without giving the answer away.
+// The same kinds decide what «Как строится» shows, so the card is always about the mistake actually made.
 const AGREE = [["have", "has"], ["do", "does"], ["is", "are"], ["am", "is"], ["am", "are"], ["was", "were"]];
+const PREPS = ["in", "on", "at", "under", "next", "to", "from", "between", "near", "behind", "for", "with", "of", "by", "into", "over", "above"];
+const ARTS = ["a", "an", "the"];
 function wordDist(a, b) {
   const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
   for (let j = 1; j <= b.length; j++) d[0][j] = j;
@@ -308,19 +311,31 @@ function wordDist(a, b) {
     d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
   return d[a.length][b.length];
 }
-function wordDiff(it, u) {
+function mistakeKinds(it, v) {
+  const u = norm(v).split(" ");
   const best = it.a.map(a => norm(a).split(" ")).sort((x, y) => wordDist(u, x) - wordDist(u, y))[0];
+  if (best.join(" ") === u.join(" ")) return [];
+  if ([...best].sort().join(" ") === [...u].sort().join(" ")) return [{ kind: "order", text: "Все слова верные, но порядок другой." }];
   const missing = best.filter(w => !u.includes(w)), extra = u.filter(w => !best.includes(w));
-  if (!missing.length && !extra.length) return "";
+  const out = [];
   const pair = extra.find(x => missing.some(m => AGREE.some(([p, q]) => (p === x && q === m) || (q === x && p === m))
     || x + "s" === m || m + "s" === x || x + "es" === m || m + "es" === x));
-  if (pair) return `Форма «${pair}» не подходит к тому, кто действует. I / you / we / they — have, do, are и глагол без -s; he / she / it — has, does, is и глагол с -s.`;
-  if (!extra.length && missing.length === 1 && ["a", "an", "the"].includes(missing[0])) return "Почти! Не хватает артикля a / an / the.";
-  if (!extra.length && missing.some(w => ["do", "does", "did"].includes(w))) return "Не хватает вспомогательного глагола do / does / did: в вопросе и отрицании без него нельзя.";
-  if (!extra.length) return missing.length === 1 ? "Почти! Не хватает одного слова." : `Не хватает нескольких слов (${missing.length}).`;
-  if (!missing.length) return extra.length === 1 ? `Лишнее слово: «${extra[0]}».` : `Лишние слова: «${extra.join("», «")}».`;
-  if (missing.length === 1 && extra.length === 1) return `Почти! Одно слово не то: «${extra[0]}».`;
-  return "";
+  if (pair) out.push({ kind: "agree", text: `Форма «${pair}» не подходит к тому, кто действует.` });
+  const xp = extra.filter(w => PREPS.includes(w)), mp = missing.filter(w => PREPS.includes(w));
+  if (xp.length && mp.length) out.push({ kind: "prep", text: `Предлог «${xp[0]}» здесь не подходит.` });
+  else if (mp.length) out.push({ kind: "prep", text: "Не хватает предлога." });
+  else if (xp.length) out.push({ kind: "prep", text: `Предлог «${xp[0]}» здесь лишний.` });
+  const xa = extra.filter(w => ARTS.includes(w)), ma = missing.filter(w => ARTS.includes(w));
+  if (xa.length && ma.length) out.push({ kind: "article", text: `Артикль «${xa[0]}» здесь не тот.` });
+  else if (ma.length) out.push({ kind: "article", text: "Не хватает артикля a / an / the." });
+  else if (xa.length) out.push({ kind: "article", text: `Артикль «${xa[0]}» здесь лишний.` });
+  if (missing.some(w => ["do", "does", "did"].includes(w)) && !extra.some(w => ["do", "does", "did"].includes(w)))
+    out.push({ kind: "aux", text: "Не хватает вспомогательного глагола do / does / did." });
+  if (out.length) return out.slice(0, 3);
+  if (!extra.length) return [{ kind: "word", text: missing.length === 1 ? "Почти! Не хватает одного слова." : `Не хватает нескольких слов (${missing.length}).` }];
+  if (!missing.length) return [{ kind: "word", text: extra.length === 1 ? `Лишнее слово: «${extra[0]}».` : `Лишние слова: «${extra.join("», «")}».` }];
+  if (missing.length === 1 && extra.length === 1) return [{ kind: "word", text: `Почти! Одно слово не то: «${extra[0]}».` }];
+  return [];
 }
 
 // «Как строится»: the word order of the sentence type, shown next to a wrong typed or assembled answer.
@@ -336,15 +351,28 @@ function orderSchema(answer) {
 }
 const slotsHtml = slots => `<div class="formula">${slots.map((x, i) =>
   (i ? '<span class="plus">+</span>' : "") + `<span class="slot${x.startsWith("!") ? " be" : ""}">${esc(x.replace(/^!/, ""))}</span>`).join("")}</div>`;
-function whyAside(it, topicFormula) {
-  const box = document.createElement("aside");
-  box.className = "why";
-  const { note, slots } = orderSchema(it.a[0]);
-  box.innerHTML = `
-    <p class="why-head">Как строится</p>
-    ${topicFormula ? `<div class="why-part"><p class="why-label">Формула темы</p>${topicFormula}</div>` : ""}
-    <div class="why-part"><p class="why-label">Порядок слов</p>${slotsHtml(slots)}<p class="why-note">${note}</p></div>`;
-  return box;
+const TIME_WORDS = /\d|o'clock|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|morning|evening|afternoon|night|weekend/i;
+const ruleList = rows => `<ul class="why-rules">${rows.map(([w, t]) => `<li><b>${esc(w)}</b> ${esc(t)}</li>`).join("")}</ul>`;
+function whyParts(it, kinds, topicFormula) {
+  const parts = [];
+  for (const { kind } of kinds) {
+    if (kind === "order" || kind === "aux") {
+      const { note, slots } = orderSchema(it.a[0]);
+      if (kind === "order" && topicFormula) parts.push(`<div class="why-part"><p class="why-label">Формула темы</p>${topicFormula}</div>`);
+      parts.push(`<div class="why-part"><p class="why-label">Порядок слов</p>${slotsHtml(slots)}<p class="why-note">${note}</p></div>`);
+    } else if (kind === "agree") {
+      parts.push(`<div class="why-part"><p class="why-label">Кто действует → какая форма</p>${ruleList([
+        ["I · you · we · they", "have · do · are · work"], ["he · she · it", "has · does · is · works"]])}</div>`);
+    } else if (kind === "prep") {
+      parts.push(`<div class="why-part"><p class="why-label">Предлоги</p>${ruleList(TIME_WORDS.test(it.a[0])
+        ? [["at", "время: at seven"], ["on", "дни: on Monday"], ["in", "месяцы, части дня: in June, in the morning"]]
+        : [["in", "внутри: in the box"], ["on", "на поверхности: on the wall"], ["at", "в точке: at home, at work"], ["under", "под: under the chair"]])}</div>`);
+    } else if (kind === "article") {
+      parts.push(`<div class="why-part"><p class="why-label">Артикли</p>${ruleList([
+        ["a / an", "один из многих, упоминаем впервые: a car"], ["the", "понятно, какой именно: the door"], ["an", "перед гласным звуком: an apple"]])}</div>`);
+    }
+  }
+  return parts.slice(0, 2);
 }
 
 function orderHint(it, tries) {
@@ -1077,21 +1105,24 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         recallPool.push({ sentence: spoken, cue: qHtml(it) }); // asked at the end of the portion, not in the middle of it
       }
     };
-    const wrong = msg => {
+    const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // Written and assembled sentences get «Как строится» once: on a wide screen to the right, on a phone below.
-      if ((it.t === "input" && it.a[0].includes(" ")) || it.t === "order") {
-        if (!li.querySelector(".why")) {
-          const why = whyAside(it, topicFormula(id));
-          // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
-          const rows = li.children.length;
-          li.style.setProperty("--why-rows", `repeat(${rows}, auto) 1fr`);
-          why.style.gridRow = `1 / span ${rows + 1}`;
-          li.appendChild(why);
-          li.classList.add("has-why");
-        }
-      }
+      // «Почему так» for written and assembled sentences: only a rule about the mistake actually made.
+      // On a wide screen to the right of the task, on a phone below it.
+      if (v === undefined || !((it.t === "input" && it.a[0].includes(" ")) || it.t === "order")) return;
+      const parts = whyParts(it, mistakeKinds(it, v), topicFormula(id));
+      li.querySelector(".why")?.remove();
+      li.classList.toggle("has-why", parts.length > 0);
+      if (!parts.length) return;
+      const why = document.createElement("aside");
+      why.className = "why";
+      why.innerHTML = `<p class="why-head">Почему так</p>${parts.join("")}`;
+      // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
+      const rows = li.children.length;
+      li.style.setProperty("--why-rows", `repeat(${rows}, auto) 1fr`);
+      why.style.gridRow = `1 / span ${rows + 1}`;
+      li.appendChild(why);
     };
 
     if (it.t === "choice") {
@@ -1106,7 +1137,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         const v = inp.value;
         if (!v.trim()) { inp.focus(); return; }
         if (it.a.some(a => norm(a) === norm(v))) finish(st.tries ? "retry" : "ok");
-        else wrong(diagnose(it, v, st.tries));
+        else wrong(diagnose(it, v, st.tries), v);
       };
       li.querySelector("[data-check]").addEventListener("click", check);
       // Подсказка не считается ошибкой: сначала первое слово, потом начало фразы.
@@ -1140,7 +1171,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
         if (bank.children.length) { wrong("Используйте все слова."); st.tries--; return; }
         const v = [...line.children].map(t => t.textContent).join(" ");
         if (it.a.some(a => norm(a) === norm(v))) finish(st.tries ? "retry" : "ok");
-        else wrong(orderHint(it, st.tries + 1));
+        else wrong(orderHint(it, st.tries + 1), v);
       });
       li.querySelector("[data-show]").addEventListener("click", () => finish("shown"));
     }
