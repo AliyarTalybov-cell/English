@@ -352,23 +352,23 @@ function orderSchema(answer) {
 const slotsHtml = slots => `<div class="formula">${slots.map((x, i) =>
   (i ? '<span class="plus">+</span>' : "") + `<span class="slot${x.startsWith("!") ? " be" : ""}">${esc(x.replace(/^!/, ""))}</span>`).join("")}</div>`;
 const TIME_WORDS = /\d|o'clock|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|morning|evening|afternoon|night|weekend/i;
-const ruleList = rows => `<ul class="why-rules">${rows.map(([w, t]) => `<li><b>${esc(w)}</b> ${esc(t)}</li>`).join("")}</ul>`;
+const ruleList = rows => `<ul class="mistake-card-rules">${rows.map(([w, t]) => `<li><b>${esc(w)}</b> ${esc(t)}</li>`).join("")}</ul>`;
 function whyParts(it, kinds, topicFormula) {
   const parts = [];
   for (const { kind } of kinds) {
     if (kind === "order" || kind === "aux") {
       const { note, slots } = orderSchema(it.a[0]);
-      if (kind === "order" && topicFormula) parts.push(`<div class="why-part"><p class="why-label">Формула темы</p>${topicFormula}</div>`);
-      parts.push(`<div class="why-part"><p class="why-label">Порядок слов</p>${slotsHtml(slots)}<p class="why-note">${note}</p></div>`);
+      if (kind === "order" && topicFormula) parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Формула темы</p>${topicFormula}</div>`);
+      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Порядок слов</p>${slotsHtml(slots)}<p class="mistake-card-note">${note}</p></div>`);
     } else if (kind === "agree") {
-      parts.push(`<div class="why-part"><p class="why-label">Кто действует → какая форма</p>${ruleList([
+      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Кто действует → какая форма</p>${ruleList([
         ["I · you · we · they", "have · do · are · work"], ["he · she · it", "has · does · is · works"]])}</div>`);
     } else if (kind === "prep") {
-      parts.push(`<div class="why-part"><p class="why-label">Предлоги</p>${ruleList(TIME_WORDS.test(it.a[0])
+      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Предлоги</p>${ruleList(TIME_WORDS.test(it.a[0])
         ? [["at", "время: at seven"], ["on", "дни: on Monday"], ["in", "месяцы, части дня: in June, in the morning"]]
         : [["in", "внутри: in the box"], ["on", "на поверхности: on the wall"], ["at", "в точке: at home, at work"], ["under", "под: under the chair"]])}</div>`);
     } else if (kind === "article") {
-      parts.push(`<div class="why-part"><p class="why-label">Артикли</p>${ruleList([
+      parts.push(`<div class="mistake-card-part"><p class="mistake-card-label">Артикли</p>${ruleList([
         ["a / an", "один из многих, упоминаем впервые: a car"], ["the", "понятно, какой именно: the door"], ["an", "перед гласным звуком: an apple"]])}</div>`);
     }
   }
@@ -1116,15 +1116,15 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       // On a wide screen to the right of the task, on a phone below it.
       if (v === undefined || !((it.t === "input" && it.a[0].includes(" ")) || it.t === "order")) return;
       const parts = whyParts(it, mistakeKinds(it, v), topicFormula(id));
-      li.querySelector(".why")?.remove();
-      li.classList.toggle("has-why", parts.length > 0);
+      li.querySelector(".mistake-card")?.remove();
+      li.classList.toggle("has-mistake-card", parts.length > 0);
       if (!parts.length) return;
       const why = document.createElement("aside");
-      why.className = "why";
-      why.innerHTML = `<p class="why-head">Почему так</p>${parts.join("")}`;
+      why.className = "mistake-card";
+      why.innerHTML = `<p class="mistake-card-head">Почему так</p>${parts.join("")}`;
       // The card spans the task rows plus one flexible row, so its height never stretches the task itself.
       const rows = li.children.length;
-      li.style.setProperty("--why-rows", `repeat(${rows}, auto) 1fr`);
+      li.style.setProperty("--mc-rows", `repeat(${rows}, auto) 1fr`);
       why.style.gridRow = `1 / span ${rows + 1}`;
       li.appendChild(why);
     };

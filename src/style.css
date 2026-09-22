@@ -165,21 +165,21 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .tile{min-height:40px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--chip);font-size:16px}
 .line .tile{background:var(--accent-soft);border-color:transparent}
 .fb{font-size:15px;line-height:1.5;border-radius:10px;padding:10px 12px;display:grid;gap:2px}
-/* «Как строится» next to a wrong typed answer: right of the task on a wide screen, below it on a phone */
-.why{display:grid;gap:12px;align-content:start;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);animation:dropIn var(--t2) var(--ease-out)}
-.why-head{font-size:14px;font-weight:600}
-.why-part{display:grid;gap:6px}
-.why-label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.why .formula{padding:0;border:0;background:none;gap:4px}
-.why .slot{font-size:13px;padding:4px 8px}
-.why .plus{display:none}
-.why-note{font-size:14px;line-height:1.45;color:var(--muted)}
-.why-rules{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px;line-height:1.45;color:var(--muted)}
-.why-rules b{color:var(--ink);font-weight:600}
-.item:not(.has-why) .why{display:none}
-@media (max-width:859px){.why{grid-row:auto!important}}
-@media (min-width:860px){.item.has-why{grid-template-columns:minmax(0,1fr) 220px;grid-template-rows:var(--why-rows);column-gap:16px}.item.has-why>*{grid-column:1}.item.has-why>.why{grid-column:2}}
-@media (prefers-reduced-motion: reduce){.why{animation:none}}
+/* «Почему так» next to a wrong typed answer: right of the task on a wide screen, below it on a phone */
+.mistake-card{display:grid;gap:12px;align-content:start;padding:12px 14px;border-radius:12px;background:var(--bg);border:1px solid var(--line);animation:dropIn var(--t2) var(--ease-out)}
+.mistake-card-head{font-size:14px;font-weight:600}
+.mistake-card-part{display:grid;gap:6px}
+.mistake-card-label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mistake-card .formula{padding:0;border:0;background:none;gap:4px}
+.mistake-card .slot{font-size:13px;padding:4px 8px}
+.mistake-card .plus{display:none}
+.mistake-card-note{font-size:14px;line-height:1.45;color:var(--muted)}
+.mistake-card-rules{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px;line-height:1.45;color:var(--muted)}
+.mistake-card-rules b{color:var(--ink);font-weight:600}
+.item:not(.has-mistake-card) .mistake-card{display:none}
+@media (max-width:859px){.mistake-card{grid-row:auto!important}}
+@media (min-width:860px){.item.has-mistake-card{grid-template-columns:minmax(0,1fr) 220px;grid-template-rows:var(--mc-rows);column-gap:16px}.item.has-mistake-card>*{grid-column:1}.item.has-mistake-card>.mistake-card{grid-column:2}}
+@media (prefers-reduced-motion: reduce){.mistake-card{animation:none}}
 .fb:empty{display:none}
 .fb.good{background:var(--good-soft)}
 .fb.bad{background:var(--bad-soft)}
