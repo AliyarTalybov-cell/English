@@ -668,7 +668,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       allDone += done; allTotal += total; allOk += ok;
       addChip(sec.nav, `${done}/${total}`, done === total ? " complete" : "", sec.id);
       const secEl = document.getElementById(sec.id);
-      if (secEl) secEl.querySelector("[data-count]").textContent = `сделано ${done} из ${total} · с первой попытки ${ok}`;
+      if (secEl) secEl.querySelector("[data-count]").innerHTML = `<span>сделано ${done} из ${total}</span> · <span>с первой попытки ${ok}</span>`;
     });
     const mist = mistakes().length;
     addChip("Мои ошибки", mist, mist ? " mist" : "", "review");
@@ -720,7 +720,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       const btn = document.createElement("button");
       btn.type = "button"; btn.className = "btn open-practice";
       btn.textContent = solvedHere
-        ? `Продолжить практику · решено ${solvedHere} из ${flat.length}`
+        ? `${solvedHere === flat.length ? "Открыть" : "Продолжить"} практику · решено ${solvedHere} из ${flat.length}`
         : `Начать практику · ${flat.length} ${plural(flat.length, "задание", "задания", "заданий")}`;
       btn.addEventListener("click", () => renderPart(false));
       holder.appendChild(btn);

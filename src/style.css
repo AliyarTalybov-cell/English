@@ -83,6 +83,17 @@ th{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.06em;t
 td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
 tr:last-child td{border-bottom:0}
 td:first-child{font-weight:600;white-space:nowrap}
+/* on a phone the columns keep a readable width and the table scrolls sideways, instead of the last column collapsing word by word */
+@media (max-width:600px){
+  table{width:auto;min-width:100%}td{min-width:6em}td:last-child{min-width:14em}
+  /* a soft edge shadow shows there is more to the side; it disappears once scrolled to that end */
+  .tbl{background:
+    linear-gradient(90deg,var(--surface) 40%,transparent) left/28px 100% no-repeat local,
+    linear-gradient(270deg,var(--surface) 40%,transparent) right/28px 100% no-repeat local,
+    linear-gradient(90deg,color-mix(in srgb,var(--ink) 14%,transparent),transparent) left/10px 100% no-repeat scroll,
+    linear-gradient(270deg,color-mix(in srgb,var(--ink) 14%,transparent),transparent) right/10px 100% no-repeat scroll,
+    var(--surface)}
+}
 mark{background:var(--accent-soft);color:var(--ink);padding:0 3px;border-radius:4px;font-weight:600}
 .examples{list-style:none;padding:0;margin:0;display:grid;gap:8px}
 .examples li{display:grid;gap:1px;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
@@ -114,6 +125,7 @@ mark{background:var(--accent-soft);color:var(--ink);padding:0 3px;border-radius:
 .practice-head h3{font-family:var(--display);font-weight:500;font-size:19px}
 .ph-right{display:flex;align-items:center;gap:10px}
 .count{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.count span{white-space:nowrap}
 .group{display:grid;gap:10px}
 .group h4{font-size:15px;font-weight:600;color:var(--muted)}
 .items{list-style:none;padding:0;margin:0;display:grid;gap:10px}
@@ -575,8 +587,8 @@ button.who[aria-expanded="true"] .who-ava{box-shadow:0 0 0 2px var(--accent)}
 
 /* ---------- profile ---------- */
 /* Same building blocks as the lessons list: cards on --surface, mono eyebrow, one accent colour. */
-.bar.big{height:8px;border-radius:8px;margin-top:4px}
-.hint-line{font-family:var(--mono);font-size:12px;color:var(--muted);margin:6px 0 0}
+.bar.big{height:8px;border-radius:8px;margin-top:12px}
+.hint-line{font-family:var(--mono);font-size:12px;color:var(--muted);margin:8px 0 0}
 .card-block{padding-block:34px 0;display:grid;gap:12px}
 .card-block .eyebrow{margin-bottom:-6px}
 .card-block h2{font-family:var(--display);font-weight:500;font-size:clamp(23px,5.6vw,30px);line-height:1.2}
@@ -946,7 +958,9 @@ html.no-scroll{overflow:hidden}
 @media (prefers-reduced-motion: reduce){.bubble-row{transition:none}}
 
 /* ---------- practice in portions ---------- */
-.portion-head{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:-4px}
+/* groups of one portion and its result card stand apart; the portion caption stays close to its first group */
+.portion{display:grid;gap:24px}
+.portion-head{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:-12px}
 .portion-done{display:grid;gap:8px;padding:18px;border-radius:16px;background:var(--surface);border:1px solid var(--line);animation:rise var(--t3) var(--ease-out) both}
 .portion-score{font-family:var(--display);font-size:22px;line-height:1.2}
 .portion-score b{color:var(--accent);font-size:28px;font-weight:600}
