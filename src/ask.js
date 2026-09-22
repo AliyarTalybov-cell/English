@@ -132,7 +132,8 @@ export function openAsk({ context = null, onAuth } = {}) {
       if (err instanceof AuthRequired) { close(); onAuth?.(err); return; }
       wait.className = "ask-a ask-err"; wait.removeAttribute("aria-label");
       if (err.code === "limit") { left = 0; wait.textContent = "Вопросы на сегодня закончились. Завтра можно будет спросить снова."; }
-      else wait.textContent = "Не получилось получить ответ. Проверьте интернет и попробуйте ещё раз.";
+      else wait.textContent = navigator.onLine === false ? "Нет связи с интернетом. Проверьте подключение и попробуйте ещё раз."
+        : "Помощник сейчас перегружен. Попробуйте ещё раз через минуту — вопрос не списался.";
     } finally {
       busy = false; showLeft(); scrollDown();
     }

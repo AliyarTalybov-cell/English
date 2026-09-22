@@ -5,7 +5,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Tried in this order: when one is overloaded (503) or out of quota (429), the next one answers.
-const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"];
+const MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
 const MAX_TURNS = 12;        // earlier messages of the conversation sent back for context
 const MAX_TEXT = 2000;       // characters per message
 const MAX_TOOL_ROUNDS = 6;
@@ -22,6 +22,7 @@ const SYSTEM = `Ты — помощник по английскому языку
 
 Как отвечать:
 - По-русски, коротко и по делу: обычно 2–6 предложений. Английские примеры — короткие, на уровне A1–A2.
+- Обращайся к ученику на «вы», как весь сайт.
 - Объясняй просто, через сравнение с русским, как хороший учитель. Без длинных вступлений и без списков из десяти пунктов.
 - Можно выделить главное через **жирный** и дать короткий список, если он правда помогает. Заголовков и таблиц не нужно.
 - Если ученик спрашивает о своём прогрессе, ошибках, темах или словах — сначала посмотри данные инструментами и отвечай по ним. Не выдумывай данные.
@@ -184,7 +185,7 @@ Deno.serve(async req => {
 
   // ---------- the conversation with Gemini ----------
   const key = Deno.env.get("GEMINI_API_KEY");
-  // The whole answer must fit well inside the browser's 120 s wait; each model attempt gets at most 25 s.
+  // The whole answer must fit well inside the browser's 120 s wait; each model attempt gets at most 20 s.
   const deadline = Date.now() + 95_000;
   // A short progress summary goes with every question, so most questions about progress need no tool call.
   let summary = "";
@@ -198,7 +199,7 @@ Deno.serve(async req => {
   const generate = async (contents: any[]) => {
     let last = "";
     for (const model of MODELS) {
-      const time = Math.min(25_000, deadline - Date.now());
+      const time = Math.min(20_000, deadline - Date.now());
       if (time < 3_000) break;
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
