@@ -1029,6 +1029,9 @@ html.no-scroll{overflow:hidden}
 .tt-say{display:grid;gap:2px}
 .tt-en{font-size:16px;line-height:1.5;transition:color var(--t2) ease}
 .tt-lines li.now .tt-en{color:var(--accent)}
+.tt-role{display:none;margin-top:-4px;font-size:14px;color:var(--muted)}
+.topic-text.role .tt-role{display:block}
+.topic-text.role .tt-lines li.mine .tt-who{color:var(--accent);font-weight:600}
 .tt-ru{display:none;font-size:14px;line-height:1.45;color:var(--muted)}
 .with-ru .tt-ru{display:block}
 @media (max-width:480px){.topic-text .row .btn{flex:1}}

@@ -412,6 +412,8 @@ function dictationPanel(sec) {
 /* ---------- «Диалог на слух» at the end of a topic's practice ---------- */
 // Listen first and translate in your head; the text and the line-by-line translation open only when needed.
 function listenBlock({ scene, lines }) {
+  // In «По ролям» the student takes the part of whoever answers first.
+  const me = (lines.find(([who]) => who !== lines[0][0]) || lines[0])[0];
   const box = document.createElement("div");
   box.className = "topic-text";
   box.innerHTML = `
@@ -419,7 +421,8 @@ function listenBlock({ scene, lines }) {
       <p class="recall-head">Диалог на слух · послушайте и переведите про себя</p>
       <p class="tt-scene">${esc(scene)}</p>
     </div>
-    ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-tt-play>▶ Послушать</button><button class="btn quiet" type="button" data-tt-slow>Медленнее</button></div>` : ""}
+    ${canSpeak() ? `<div class="row"><button class="btn ghost" type="button" data-tt-play>▶ Послушать</button><button class="btn quiet" type="button" data-tt-slow>Медленнее</button><button class="btn quiet" type="button" data-tt-role>По ролям</button></div>
+    <p class="tt-role">Вы — ${esc(me)}. Ваши реплики отмечены: скажите их вслух в паузе.</p>` : ""}
     <details class="tt-more"${canSpeak() ? "" : " open"}>
       <summary class="tt-link">Показать текст</summary>
       <ol class="tt-lines">${lines.map(([who, en, ru]) =>
@@ -434,18 +437,24 @@ function listenBlock({ scene, lines }) {
     ruBtn.textContent = on ? "Скрыть перевод" : "Показать перевод";
     ruBtn.setAttribute("aria-expanded", on);
   });
-  const play = box.querySelector("[data-tt-play]"), slow = box.querySelector("[data-tt-slow]");
+  const play = box.querySelector("[data-tt-play]"), slow = box.querySelector("[data-tt-slow]"), role = box.querySelector("[data-tt-role]");
   if (play) {
     const items = [...box.querySelectorAll(".tt-lines li")];
+    items.forEach((li, i) => li.classList.toggle("mine", lines[i][0] === me));
     const mark = el => items.forEach(li => li.classList.toggle("now", li === el));
-    const idle = () => { play.textContent = "▶ Послушать"; box.classList.remove("playing"); mark(null); };
-    const start = slower => {
+    const idle = () => { play.textContent = "▶ Послушать"; box.classList.remove("playing", "role"); mark(null); };
+    // Own lines become pauses long enough to say them: about half a second per word, never under two seconds.
+    const pauseFor = en => Math.max(2000, 900 + en.split(/\s+/).length * 550);
+    const start = (slower, asRole) => {
       stopSpeech(); // the previous queue reports its stop now, not after this one has started
-      box.classList.add("playing"); play.textContent = "■ Стоп";
-      speakQueue(lines.map(([, en], i) => ({ lang: "en", text: en, el: items[i] })), { slower, onPart: mark, onStop: idle });
+      box.classList.add("playing"); box.classList.toggle("role", asRole); play.textContent = "■ Стоп";
+      if (asRole) more.open = true;
+      speakQueue(lines.map(([who, en], i) => asRole && who === me ? { pause: pauseFor(en), el: items[i] } : { lang: "en", text: en, el: items[i] }),
+        { slower, onPart: mark, onStop: idle });
     };
-    play.addEventListener("click", () => box.classList.contains("playing") ? stopSpeech() : start(false));
-    slow.addEventListener("click", () => start(true));
+    play.addEventListener("click", () => box.classList.contains("playing") ? stopSpeech() : start(false, false));
+    slow.addEventListener("click", () => start(true, false));
+    role.addEventListener("click", () => start(false, true));
   }
   return box;
 }

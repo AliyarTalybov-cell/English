@@ -106,6 +106,8 @@ function runFrom(delay) {
     if (queue.index >= queue.parts.length) { stopSpeech(); return; }
     const part = queue.parts[queue.index];
     queue.onPart?.(part.el || null);
+    // A silent part: the student speaks here (the «По ролям» mode of a dialogue).
+    if (part.pause) { setTimeout(() => { if (my !== session || !queue) return; queue.index++; next(); }, part.pause); return; }
     const u = new SpeechSynthesisUtterance(part.text);
     const voice = part.voice || voices[part.lang];
     u.lang = voice?.lang || (part.lang === "ru" ? "ru-RU" : "en-GB");
@@ -122,7 +124,7 @@ function runFrom(delay) {
   if (delay) setTimeout(next, 120); else next();
 }
 
-// Play a queue of { text, lang, el? }. onPart(el) fires when a part starts; onStop fires once at the end or on stop.
+// Play a queue of { text, lang, el? } or { pause: ms, el? }. onPart(el) fires when a part starts; onStop fires once at the end or on stop.
 // A label ("Тема", "Примеры") shows the floating player; short phrases play without it.
 export function speakQueue(parts, { onPart, onStop, label = "", slower = false } = {}) {
   if (!canSpeak() || !parts.length) return;
