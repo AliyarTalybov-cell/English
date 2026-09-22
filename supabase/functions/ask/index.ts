@@ -1,11 +1,11 @@
 // «Спросить»: the students' AI helper. A student asks about English or about their own progress;
-// Claude answers in Russian and reads the student's data through read-only tools.
+// the model answers in Russian and reads the student's data through read-only tools.
 // The database is queried with the student's own session, so row-level security keeps it to their data.
-// The Anthropic key is a Supabase secret (ANTHROPIC_API_KEY) and never reaches the browser.
-import Anthropic from "npm:@anthropic-ai/sdk";
+// The model is Google Gemini; its key is a Supabase secret (GEMINI_API_KEY) and never reaches the browser.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const MODEL = "claude-opus-5";
+// Tried in this order: when one is overloaded (503) or out of quota (429), the next one answers.
+const MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"];
 const MAX_TURNS = 12;        // earlier messages of the conversation sent back for context
 const MAX_TEXT = 2000;       // characters per message
 const MAX_TOOL_ROUNDS = 6;
@@ -28,7 +28,7 @@ const SYSTEM = `Ты — помощник по английскому языку
 - Если ученик прислал задание и свой ответ — объясни, в чём ошибка и какое правило работает. Готовый правильный ответ называй, только если он прямо попросит; иначе подведи к нему.
 - Если вопрос не про английский и не про учёбу на платформе — мягко верни разговор к английскому.`;
 
-const TOOLS = [
+const TOOL_LIST = [
   {
     name: "get_progress",
     description: "Прогресс ученика по всем урокам: для каждого урока slug, название, сколько заданий решено из скольких, сколько с первой попытки, сколько ошибок ждут повторения, на какой теме ученик остановился. Используй, чтобы понять, что ученик уже прошёл, и чтобы узнать slug урока для других инструментов.",
@@ -62,6 +62,16 @@ const TOOLS = [
     input_schema: { type: "object", properties: {}, additionalProperties: false },
   },
 ];
+
+// Gemini function declarations: the same tools, without JSON-schema extras it does not take.
+const TOOLS = [{
+  functionDeclarations: TOOL_LIST.map(t => {
+    const props = t.input_schema.properties as Record<string, unknown>;
+    return Object.keys(props).length
+      ? { name: t.name, description: t.description, parameters: { type: "object", properties: props, ...(t.input_schema.required ? { required: t.input_schema.required } : {}) } }
+      : { name: t.name, description: t.description };
+  }),
+}];
 
 // ---------- lesson content helpers ----------
 type Item = { t: string; q?: string; a: string | string[]; o?: string[]; w?: number; c?: string; ex?: string };
@@ -97,6 +107,7 @@ Deno.serve(async req => {
     .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.text === "string" && m.text.trim())
     .slice(-MAX_TURNS)
     .map(m => ({ role: m.role as "user" | "assistant", content: m.text.slice(0, MAX_TEXT) }));
+  // (converted to Gemini's { role: "user" | "model", parts } below)
   while (history.length && history[0].role !== "user") history.shift();
   if (!history.length || history[history.length - 1].role !== "user") return json({ error: "bad_request" }, 400);
 
@@ -171,55 +182,75 @@ Deno.serve(async req => {
     return "Неизвестный инструмент.";
   };
 
-  // ---------- the conversation with Claude ----------
+  // ---------- the conversation with Gemini ----------
+  const key = Deno.env.get("GEMINI_API_KEY");
+  // The whole answer must fit well inside the browser's 120 s wait; each model attempt gets at most 25 s.
+  const deadline = Date.now() + 95_000;
+  // A short progress summary goes with every question, so most questions about progress need no tool call.
+  let summary = "";
   try {
-    // A key that is not scoped to a workspace needs the workspace id with every request (secret ANTHROPIC_WORKSPACE_ID).
-    const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
-    const client = new Anthropic({
-      apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
-      ...(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {}),
-    });
+    const { data } = await sb.rpc("list_lessons");
+    summary = (data || []).map((l: Record<string, unknown>) =>
+      `${l.title} (${l.slug}): решено ${l.done} из ${l.total}, с первой попытки ${l.ok}, ошибок к повторению ${l.mistakes}${l.done ? `, сейчас тема «${l.resume_title ?? "урок пройден"}»` : ""}`).join("\n");
+  } catch { /* the tools can still fetch it */ }
+  const system = summary ? `${SYSTEM}\n\nПрогресс ученика сейчас:\n${summary}` : SYSTEM;
+  // deno-lint-ignore no-explicit-any
+  const generate = async (contents: any[]) => {
+    let last = "";
+    for (const model of MODELS) {
+      const time = Math.min(25_000, deadline - Date.now());
+      if (time < 3_000) break;
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "x-goog-api-key": key!, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] }, contents, tools: TOOLS,
+            // Short explanations at A1–A2 need little deliberation; low thinking keeps answers quick.
+            generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
+          }),
+          signal: AbortSignal.timeout(time),
+        });
+        if (r.ok) return await r.json();
+        last = `${model} ${r.status} ${(await r.text()).slice(0, 200)}`;
+        if (r.status !== 429 && r.status !== 503) break;
+      } catch (e) {
+        last = `${model} ${String((e as Error).message || e).slice(0, 120)}`; // timeout or network: try the next model
+      }
+    }
+    throw new Error(last || "no time left");
+  };
+  try {
     // deno-lint-ignore no-explicit-any
-    const messages: any[] = history;
+    const contents: any[] = history.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      // Server-side fallbacks: if Opus 5 declines, the API re-runs the request on the recommended model.
-      // deno-lint-ignore no-explicit-any
-      const response: any = await client.beta.messages.create({
-        model: MODEL,
-        max_tokens: 16000,
-        output_config: { effort: "medium" },
-        system: SYSTEM,
-        tools: TOOLS,
-        messages,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-      // deno-lint-ignore no-explicit-any
-      } as any);
-
-      if (response.stop_reason === "refusal") {
+      const data = await generate(contents);
+      const cand = data.candidates?.[0];
+      if (!cand?.content?.parts?.length) {
         return json({ answer: "На этот вопрос я не отвечу. Давайте вернёмся к английскому: спросите про правило, слово или свою ошибку.", left });
       }
-      const text = response.content.filter((b: { type: string }) => b.type === "text").map((b: { text: string }) => b.text).join("\n").trim();
-      if (response.stop_reason !== "tool_use") {
+      // deno-lint-ignore no-explicit-any
+      const parts: any[] = cand.content.parts;
+      const calls = parts.filter(p => p.functionCall);
+      if (!calls.length) {
+        const text = parts.filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
         return json({ answer: text || "Не получилось сформулировать ответ. Попробуйте спросить иначе.", left });
       }
-      messages.push({ role: "assistant", content: response.content });
+      // The model's turn goes back unchanged (it carries thought signatures), then the tool results.
+      contents.push(cand.content);
       const results = [];
-      for (const block of response.content) {
-        if (block.type !== "tool_use") continue;
-        try {
-          results.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(await run(block.name, block.input || {})) });
-        } catch (e) {
-          results.push({ type: "tool_result", tool_use_id: block.id, content: `Ошибка чтения данных: ${String((e as Error).message || e)}`, is_error: true });
-        }
+      for (const { functionCall: fc } of calls) {
+        let response;
+        try { response = { result: await run(fc.name, fc.args || {}) }; }
+        catch (e) { response = { error: `Ошибка чтения данных: ${String((e as Error).message || e)}` }; }
+        results.push({ functionResponse: { ...(fc.id ? { id: fc.id } : {}), name: fc.name, response } });
       }
-      messages.push({ role: "user", content: results });
+      contents.push({ role: "user", parts: results });
     }
     return json({ answer: "Вопрос оказался слишком сложным. Попробуйте разбить его на части.", left });
   } catch (e) {
     console.error("ask failed", e);
     await refund();
-    const err = e as { status?: number; message?: string };
-    return json({ error: "unavailable", detail: `${err.status ?? ""} ${String(err.message || e).slice(0, 300)}`.trim() }, 503);
+    return json({ error: "unavailable" }, 503);
   }
 });

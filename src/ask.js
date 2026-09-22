@@ -14,9 +14,9 @@ const plural = (n, one, few, many) => {
   return d === 1 ? one : many;
 };
 
-// The answer may use **bold**, `code` and short "- " lists; everything else stays plain text.
+// The answer may use **bold**, *italic*, `code` and short "- " lists; everything else stays plain text.
 function renderAnswer(text) {
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
   const out = [];
   let list = null;
   for (const raw of text.split("\n")) {
