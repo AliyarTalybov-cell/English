@@ -72,7 +72,10 @@ export function openAsk({ context = null, history = null, onAuth } = {}) {
     </aside>`;
   document.body.appendChild(root);
   document.documentElement.classList.add("no-scroll");
-  requestAnimationFrame(() => root.classList.add("open"));
+  // Start the slide-in without waiting for an animation frame (which may never come in a busy or background tab):
+  // reading the layout commits the start position, then the class moves the panel into view.
+  void root.offsetWidth;
+  root.classList.add("open");
 
   const log = root.querySelector(".ask-log"), empty = root.querySelector(".ask-empty");
   const input = root.querySelector(".ask-input"), send = root.querySelector(".ask-send"), leftEl = root.querySelector("[data-left]");
