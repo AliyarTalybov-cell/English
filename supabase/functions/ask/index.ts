@@ -106,6 +106,7 @@ Deno.serve(async req => {
     const lines = [
       ctx.lesson && `Урок: ${ctx.lesson}`, ctx.topic && `Тема: ${ctx.topic}`,
       ctx.task && `Задание: ${ctx.task}`, ctx.answer && `Ответ ученика: ${ctx.answer}`,
+      ctx.feedback && `Что сайт сказал об ошибке: ${ctx.feedback}`,
     ].filter(Boolean).map(s => String(s).slice(0, 500));
     if (lines.length) history[history.length - 1].content = `${lines.join("\n")}\n\n${history[history.length - 1].content}`;
   }
@@ -172,7 +173,12 @@ Deno.serve(async req => {
 
   // ---------- the conversation with Claude ----------
   try {
-    const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
+    // A key that is not scoped to a workspace needs the workspace id with every request (secret ANTHROPIC_WORKSPACE_ID).
+    const workspace = Deno.env.get("ANTHROPIC_WORKSPACE_ID");
+    const client = new Anthropic({
+      apiKey: Deno.env.get("ANTHROPIC_API_KEY"),
+      ...(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {}),
+    });
     // deno-lint-ignore no-explicit-any
     const messages: any[] = history;
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -213,6 +219,7 @@ Deno.serve(async req => {
   } catch (e) {
     console.error("ask failed", e);
     await refund();
-    return json({ error: "unavailable" }, 503);
+    const err = e as { status?: number; message?: string };
+    return json({ error: "unavailable", detail: `${err.status ?? ""} ${String(err.message || e).slice(0, 300)}`.trim() }, 503);
   }
 });

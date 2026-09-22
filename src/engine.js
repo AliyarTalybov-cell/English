@@ -1121,17 +1121,20 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const wrong = (msg, v) => {
       st.tries++;
       setFeedback(fb, "fb bad", `<span class="head">Пока не так.</span><span>${esc(msg)}</span>${st.tries >= 2 && it.t !== "order" ? '<span class="tip">Если не получается, нажмите «Ответ» и прочитайте пояснение. Задание попадёт в «Мои ошибки».</span>' : ""}`);
-      // The AI helper gets the task and the student's answer and explains the rule.
+      // «Спросить у ИИ»: the helper gets the task, the student's answer and what the site said about the mistake;
+      // the student asks their own question. The link sits in «Почему так» when there is one, otherwise under the message.
+      let askLink = null;
       if (opts.ask) {
         const secId = id.replace(/-\d+-\d+$/, "");
-        const link = document.createElement("button");
-        link.type = "button"; link.className = "text-link fb-ask"; link.textContent = "Спросить, почему так";
-        link.addEventListener("click", () => opts.ask({
+        askLink = document.createElement("button");
+        askLink.type = "button"; askLink.className = "text-link fb-ask"; askLink.textContent = "Спросить у ИИ";
+        askLink.addEventListener("click", () => opts.ask({
           lesson: lesson.title, topic: S.find(x => x.id === secId)?.nav || "",
           task: it.q ? it.q.replace(/_{3,}/g, "…") : it.t === "order" ? `Соберите предложение из слов: ${it.w.join(" / ")}` : "",
           answer: v || "",
+          feedback: msg,
         }));
-        fb.appendChild(link);
+        fb.appendChild(askLink);
       }
       // «Почему так» for written and assembled sentences: only a rule about the mistake actually made.
       // On a wide screen to the right of the task, on a phone below it.
@@ -1147,6 +1150,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       const rows = li.children.length;
       li.style.setProperty("--mc-rows", `repeat(${rows}, auto) 1fr`);
       why.style.gridRow = `1 / span ${rows + 1}`;
+      if (askLink) why.appendChild(askLink);
       li.appendChild(why);
     };
 
