@@ -998,9 +998,15 @@ html.no-scroll{overflow:hidden}
 .open-practice{width:100%;justify-self:stretch;margin-top:4px}
 
 /* ---------- «Повторить сегодня» ---------- */
-.due-block{padding-block:28px 0}
-.due-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px}
-.due-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line);color:var(--ink);text-decoration:none;transition:transform var(--t2) var(--ease),box-shadow var(--t2) var(--ease),border-color var(--t2) ease}
+/* home: progress, «Повторить сегодня» and the course description are separate sections, not one wall of cards */
+.hero+.summary{margin-top:16px}
+.due-block{padding-block:40px 0}
+.wrap>.about{margin-top:40px}
+.due-line{margin-top:20px}
+/* the topics to repeat are a light list with thin rules, not boxes like the cards around them */
+.due-list{list-style:none;margin:6px 0 0;padding:0;display:grid;border-top:1px solid var(--line)}
+.due-list li{border-bottom:1px solid var(--line)}
+.due-row{display:flex;align-items:center;gap:12px;margin-inline:-12px;padding:14px 12px;border-radius:10px;color:var(--ink);text-decoration:none;transition:transform var(--t2) var(--ease),background-color var(--t2) ease}
 .due-main{flex:1;min-width:0;display:grid;gap:1px}
 .due-main b{font-size:16px;line-height:1.25}
 .due-main small{font-size:13px;color:var(--muted)}
@@ -1008,7 +1014,7 @@ html.no-scroll{overflow:hidden}
 .due-row .arr{flex:none;color:var(--accent);font-size:18px;transition:transform var(--t2) var(--ease)}
 .due-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .due-row:active{transform:scale(.99)}
-@media (hover:hover){.due-row:hover{border-color:var(--accent);box-shadow:var(--shadow)}.due-row:hover .arr{transform:translateX(3px)}}
+@media (hover:hover){.due-row:hover{background:var(--surface)}.due-row:hover .arr{transform:translateX(3px)}}
 @media (prefers-reduced-motion: reduce){.due-row,.due-row .arr{transition:none}}
 
 /* ---------- dictation ---------- */

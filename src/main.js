@@ -549,6 +549,13 @@ function paintList(lessons, silent) {
           <h1>Уроки</h1>
           <p class="lead">${esc(COURSE.lead)}</p>
         </header>
+        ${lessons.length ? `
+        <section class="summary" aria-label="Общий прогресс">
+          <div class="stat"><b><span data-count="${sum.done}">${sum.done}</span><small class="muted" style="font-size:.55em"> / ${sum.total}</small></b><span>заданий решено</span></div>
+          <div class="stat"><b>${sum.done ? `<span data-count="${firstTry}" data-suffix="%">${firstTry}%</span>` : "—"}</b><span>с первой попытки</span></div>
+          <div class="stat${sum.mistakes ? " warn" : ""}"><b><span data-count="${sum.mistakes}">${sum.mistakes}</span></b><span>ошибок ждут повторения</span></div>
+        </section>
+        ` : ""}
         ${dueBlock()}
         ${lessons.length ? `
         <details class="about"${sum.done ? "" : " open"}>
@@ -557,11 +564,6 @@ function paintList(lessons, silent) {
           <p class="about-note">В каждом уроке сначала объяснение темы, потом упражнения с разбором ошибок. В конце — контрольные.</p>
           <p class="about-note">${esc(COURSE.next)}</p>
         </details>
-        <section class="summary" aria-label="Общий прогресс">
-          <div class="stat"><b><span data-count="${sum.done}">${sum.done}</span><small class="muted" style="font-size:.55em"> / ${sum.total}</small></b><span>заданий решено</span></div>
-          <div class="stat"><b>${sum.done ? `<span data-count="${firstTry}" data-suffix="%">${firstTry}%</span>` : "—"}</b><span>с первой попытки</span></div>
-          <div class="stat${sum.mistakes ? " warn" : ""}"><b><span data-count="${sum.mistakes}">${sum.mistakes}</span></b><span>ошибок ждут повторения</span></div>
-        </section>
         <ul class="lessons">${lessons.map((l, i, all) => {
           const pct = l.total ? Math.round(l.done / l.total * 100) : 0;
           const base = `#/lesson/${encodeURIComponent(l.slug)}`;
