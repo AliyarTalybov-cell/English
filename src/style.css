@@ -1283,7 +1283,7 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-log>.ask-a{position:relative;padding-left:28px}
 .ask-log>.ask-a::before{content:"";position:absolute;left:0;top:2px;width:18px;height:18px;background:var(--accent);-webkit-mask:var(--spark) center/contain no-repeat;mask:var(--spark) center/contain no-repeat}
 .ask-log>.ask-err::before{background:var(--muted)}
-.ask-panel{--spark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3.5c.45 4.4 2.6 6.55 7 7-4.4.45-6.55 2.6-7 7-.45-4.4-2.6-6.55-7-7 4.4-.45 6.55-2.6 7-7z'/%3E%3Cpath d='M18.5 14.5c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3z' opacity='.6'/%3E%3C/svg%3E")}
+:root{--spark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3.5c.45 4.4 2.6 6.55 7 7-4.4.45-6.55 2.6-7 7-.45-4.4-2.6-6.55-7-7 4.4-.45 6.55-2.6 7-7z'/%3E%3Cpath d='M18.5 14.5c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3z' opacity='.6'/%3E%3C/svg%3E")}
 .ask-a p+p,.ask-a p+ul,.ask-a ul+p{margin-top:8px}
 .ask-a ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
 .ask-a li{position:relative;padding-left:16px}
@@ -1312,7 +1312,18 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-input{flex:1;min-height:44px;max-height:140px;resize:none;line-height:1.4;overflow-y:auto;border-radius:22px;padding:11px 16px}
 .ask-send:disabled{opacity:.35;cursor:default}
 .ask-note{padding:0 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:12px;line-height:1.4;color:var(--muted)}
-@media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}}
+/* motion: messages ease in, a fresh answer comes paragraph by paragraph, the spark breathes while the helper thinks */
+@keyframes askIn{from{opacity:0;transform:translateY(6px)}}
+@keyframes askSpark{0%{transform:scale(.8) rotate(0);opacity:.5}50%{transform:scale(1.1) rotate(45deg);opacity:1}100%{transform:scale(.8) rotate(90deg);opacity:.5}}
+@keyframes askSparkIn{from{opacity:0;transform:scale(.4) rotate(-90deg)}}
+.ask-log>li{animation:askIn var(--t2) var(--ease-out) backwards}
+.ask-reveal>*{animation:askIn .32s var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 70ms)}
+.ask-inline-out .ask-inline-more{animation:askIn .32s var(--ease-out) .25s backwards}
+.ask-log>.ask-wait::before,.ask-inline-out>.ask-wait::before{animation:askSpark 1.6s ease-in-out infinite}
+.ask-inline-out>.ask-wait{position:relative;padding-left:28px}
+.ask-inline-out>.ask-wait::before{content:"";position:absolute;left:0;top:50%;width:18px;height:18px;margin-top:-9px;background:var(--accent);-webkit-mask:var(--spark) center/contain no-repeat;mask:var(--spark) center/contain no-repeat}
+.ask-backdrop.open .ask-mark svg{animation:askSparkIn .6s var(--ease-out) .12s backwards}
+@media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}.ask-log>li,.ask-reveal>*,.ask-inline-out .ask-inline-more,.ask-wait::before,.ask-mark svg{animation:none!important}}
 
 /* ---------- «Спросить ИИ»: the chat button in the corner of a lesson ---------- */
 .ask-fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:31;width:52px;height:52px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;transition:transform var(--t1) ease,border-color var(--t2) ease}
@@ -1326,4 +1337,9 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-fab:hover{border-color:var(--accent)}
 .ask-fab:active{transform:scale(.94)}
 .to-top.with-fab{right:18px;bottom:calc(16px + 52px + 12px + env(safe-area-inset-bottom,0px))}
-@media (prefers-reduced-motion: reduce){.ask-fab{transition:none}}
+/* the button eases in once the lesson is on screen; on hover its spark turns */
+@keyframes fabIn{from{opacity:0;transform:translateY(10px) scale(.9)}}
+.ask-fab{animation:fabIn .45s var(--ease-out) .35s backwards}
+.ask-fab svg path:last-child{transform-box:fill-box;transform-origin:center;transition:transform .5s var(--ease-out)}
+@media (hover:hover){.ask-fab:hover svg path:last-child{transform:rotate(90deg)}}
+@media (prefers-reduced-motion: reduce){.ask-fab{transition:none;animation:none}.ask-fab svg path:last-child{transition:none}}

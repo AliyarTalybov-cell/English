@@ -33,6 +33,12 @@ function renderAnswer(text) {
   return out.join("");
 }
 
+// A fresh answer comes in paragraph by paragraph, a little apart, rather than all at once.
+const reveal = el => {
+  el.classList.add("ask-reveal");
+  [...el.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
+};
+
 // A task from the lesson as the helper sees it.
 const contextText = c => [
   c.lesson && `Урок: ${c.lesson}`, c.topic && `Тема: ${c.topic}`, `Задание: ${c.task}`,
@@ -139,6 +145,7 @@ export function openAsk({ context = null, history = null, followUp = "", onAuth 
       messages.push({ role: "assistant", text: res.answer });
       wait.className = "ask-a"; wait.removeAttribute("aria-label");
       wait.innerHTML = renderAnswer(res.answer);
+      reveal(wait);
       showAnswer(wait);
       if (typeof res.left === "number") left = res.left;
     } catch (err) {
@@ -251,6 +258,7 @@ export function inlineAsk({ context, onAuth, auto = true }) {
       const res = await api.ask(history.map(({ role, text }) => ({ role, text })), null);
       history.push({ role: "assistant", text: res.answer });
       out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div><button type="button" class="ask-inline-more">${CHAT_ICON}<span>Продолжить в чате</span></button>`;
+      reveal(out.querySelector(".ask-a"));
       out.querySelector(".ask-inline-more").addEventListener("click", () => openAsk({ history, onAuth }));
     } catch (err) {
       if (err instanceof AuthRequired) { onAuth?.(err); return; }
