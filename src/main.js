@@ -548,6 +548,13 @@ function paintList(lessons, silent) {
           <p class="kicker">Курс английского · ${esc(COURSE.level)}</p>
           <h1>Уроки</h1>
           <p class="lead">${esc(COURSE.lead)}</p>
+          ${lessons.length ? `
+          <details class="about about-lead"${sum.done ? "" : " open"}>
+            <summary>Чему вы научитесь за курс</summary>
+            <ul class="outcomes">${COURSE.outcomes.map(([what, detail]) => `<li><b>${esc(what)}</b><span>${esc(detail)}</span></li>`).join("")}</ul>
+            <p class="about-note">В каждом уроке сначала объяснение темы, потом упражнения с разбором ошибок. В конце — контрольные.</p>
+            <p class="about-note">${esc(COURSE.next)}</p>
+          </details>` : ""}
         </header>
         ${lessons.length ? `
         <section class="summary" aria-label="Общий прогресс">
@@ -557,14 +564,7 @@ function paintList(lessons, silent) {
         </section>
         ` : ""}
         ${dueBlock()}
-        ${lessons.length ? `
-        <details class="about"${sum.done ? "" : " open"}>
-          <summary>Чему вы научитесь за курс</summary>
-          <ul class="outcomes">${COURSE.outcomes.map(([what, detail]) => `<li><b>${esc(what)}</b><span>${esc(detail)}</span></li>`).join("")}</ul>
-          <p class="about-note">В каждом уроке сначала объяснение темы, потом упражнения с разбором ошибок. В конце — контрольные.</p>
-          <p class="about-note">${esc(COURSE.next)}</p>
-        </details>
-        <ul class="lessons">${lessons.map((l, i, all) => {
+        ${lessons.length ? `<ul class="lessons">${lessons.map((l, i, all) => {
           const pct = l.total ? Math.round(l.done / l.total * 100) : 0;
           const base = `#/lesson/${encodeURIComponent(l.slug)}`;
           const finished = l.done === l.total;

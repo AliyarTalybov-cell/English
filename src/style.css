@@ -473,6 +473,13 @@ html{-webkit-tap-highlight-color:transparent}
 /* Any last block inside the accordion keeps the same bottom padding as a paragraph. */
 .about > :not(summary):last-child{padding-bottom:16px}
 .about > :not(summary):first-of-type{padding-top:4px}
+/* in the page header «Чему вы научитесь» is a quiet line under the description, not a boxed card */
+.about-lead{margin:0;background:none;border:0;border-radius:0}
+.about-lead summary{justify-content:flex-start;gap:10px;min-height:36px;padding:0;font-size:15px;font-weight:500;color:var(--accent)}
+.about-lead summary::after{width:7px;height:7px;border-color:currentColor}
+.about-lead .outcomes,.about-lead .about-note{padding-inline:0}
+.about-lead>:not(summary):first-of-type{padding-top:10px}
+.about-lead>:not(summary):last-child,.about-lead .about-note:last-child{padding-bottom:0}
 .goal{font-size:15px;line-height:1.45}
 .goal b{color:var(--accent);font-weight:600}
 @media (prefers-reduced-motion: reduce){.about summary::after{transition:none}}
@@ -1001,7 +1008,8 @@ html.no-scroll{overflow:hidden}
 /* home: progress, «Повторить сегодня» and the course description are separate sections, not one wall of cards */
 .hero+.summary{margin-top:16px}
 .due-block{padding-block:40px 0}
-.wrap>.about{margin-top:40px}
+.summary+.lessons,.due-line+.lessons{padding-top:24px}
+.due-block+.lessons{padding-top:40px}
 .due-line{margin-top:20px}
 /* the topics to repeat are a light list with thin rules, not boxes like the cards around them */
 .due-list{list-style:none;margin:6px 0 0;padding:0;display:grid;border-top:1px solid var(--line)}
