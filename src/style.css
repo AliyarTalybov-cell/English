@@ -1089,6 +1089,9 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ai-words .hint-line b{color:var(--accent);font-weight:600}
 .ai-words .btn{justify-self:start}
 .ai-words-note{font-size:14px;color:var(--muted)}
+.ai-words .btn.busy{display:inline-flex;align-items:center;gap:10px;opacity:1}
+.ai-words .btn.busy::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+@media (prefers-reduced-motion: reduce){.ai-words .btn.busy::before{animation-duration:2s}}
 .empty+.ai-words{margin-top:0}
 .words-tools .search{margin-top:0;max-width:none}
 .words-filter{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}

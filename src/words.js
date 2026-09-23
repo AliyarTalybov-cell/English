@@ -59,6 +59,12 @@ async function loadAllWords() {
   return { ...first, items: [...first.items, ...rest.flatMap(r => r.items || [])] };
 }
 
+// While the student searches or filters, the page does not get shorter than what is on screen:
+// otherwise the browser pulls it up as the list shrinks and the search field jumps under the finger.
+function holdHeight(el, on) {
+  el.style.minHeight = on ? `${Math.max(parseFloat(el.style.minHeight) || 0, innerHeight - el.getBoundingClientRect().top)}px` : "";
+}
+
 function undoToast(text, onUndo, ms = 4000) {
   document.querySelector(".toast")?.remove();
   const t = document.createElement("div");
@@ -161,8 +167,9 @@ export async function renderWords() {
 
     main.querySelector("[data-train]").addEventListener("click", () => startWordTraining());
     const search = main.querySelector("[data-search]");
-    search.addEventListener("input", () => { v.q = search.value; v.shown = 60; drawList(); });
+    search.addEventListener("input", () => { holdHeight(main, !!search.value.trim()); v.q = search.value; v.shown = 60; drawList(); });
     main.querySelectorAll("[data-filter]").forEach(b => b.addEventListener("click", () => {
+      holdHeight(main, true);
       v.filter = b.dataset.filter; v.shown = 60;
       main.querySelectorAll("[data-filter]").forEach(x => x.setAttribute("aria-selected", String(x === b)));
       drawList(true);
@@ -290,7 +297,7 @@ export async function renderWords() {
     }));
     const go = box.querySelector("[data-ai-go]");
     go?.addEventListener("click", async () => {
-      go.disabled = true; go.classList.add("loading"); go.textContent = "Подбираю слова…";
+      go.disabled = true; go.classList.add("busy"); go.textContent = "Подбираю слова…";
       try {
         const res = await api.generateWords(wordsView.topic);
         await reload();
@@ -303,7 +310,7 @@ export async function renderWords() {
         ui.toast(err.code === "limit" ? "Вопросы к ИИ на сегодня закончились. Завтра можно будет подобрать ещё."
           : err.code === "full" ? `В словаре уже ${AI_LIMIT} слов от ИИ. Удалите старые, чтобы подобрать новые.`
           : "ИИ сейчас не ответил. Попробуйте ещё раз.");
-        if (ui.isScreen(token)) { go.disabled = false; go.classList.remove("loading"); go.textContent = "Добавить 20 слов"; }
+        if (ui.isScreen(token)) { go.disabled = false; go.classList.remove("busy"); go.textContent = "Добавить 20 слов"; }
         if (err.code === "full") reload().catch(() => {});
       }
     });
@@ -804,10 +811,12 @@ export function mountStudentWords(box, userId, onCount = () => {}) {
   };
   load();
 
-  search.addEventListener("input", () => { view.q = search.value; view.shown = 60; draw(); });
+  const page = search.closest("main") || search.closest("section");
+  search.addEventListener("input", () => { holdHeight(page, !!search.value.trim()); view.q = search.value; view.shown = 60; draw(); });
   filters.addEventListener("click", e => {
     const b = e.target.closest("[data-sw-filter]");
     if (!b) return;
+    holdHeight(page, true);
     view.filter = b.dataset.swFilter; view.shown = 60; draw();
   });
   more.addEventListener("click", () => { view.shown += 60; draw(); });
