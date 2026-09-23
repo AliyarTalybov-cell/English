@@ -41,7 +41,13 @@ function wordStatus(w) {
 }
 
 // The list keeps its search and filter while the data refreshes in the background.
-const wordsView = { q: "", filter: "all", shown: 60 };
+const wordsView = { q: "", filter: "all", shown: 60, topic: "home" };
+
+// «Подобрать слова с ИИ»: topics the student picks from; the same ids as in the `words` Edge Function.
+const AI_TOPICS = [["home", "Дом"], ["food", "Еда"], ["people", "Люди и семья"], ["work", "Работа и учёба"], ["city", "Город"],
+  ["travel", "Путешествия"], ["shopping", "Покупки"], ["time", "Время и погода"], ["health", "Здоровье"], ["free", "Хобби и отдых"],
+  ["verbs", "Главные глаголы"], ["describe", "Прилагательные"]];
+const AI_LIMIT = 60;
 // Removal waits a few seconds so «Вернуть» in the toast can undo it.
 const pendingRemovals = new Map(); // word -> timer
 
@@ -53,7 +59,7 @@ async function loadAllWords() {
   return { ...first, items: [...first.items, ...rest.flatMap(r => r.items || [])] };
 }
 
-function undoToast(text, onUndo) {
+function undoToast(text, onUndo, ms = 4000) {
   document.querySelector(".toast")?.remove();
   const t = document.createElement("div");
   t.className = "toast has-action"; t.setAttribute("role", "status");
@@ -61,7 +67,7 @@ function undoToast(text, onUndo) {
   const hide = () => { t.classList.add("out"); setTimeout(() => t.remove(), 250); };
   t.querySelector("button").addEventListener("click", () => { onUndo(); hide(); });
   document.body.appendChild(t);
-  setTimeout(hide, 4000);
+  setTimeout(hide, ms);
 }
 
 export async function renderWords() {
@@ -99,6 +105,7 @@ export async function renderWords() {
             <p class="hint-line"><b>${all.length}</b> ${ui.plural(all.length, "слово", "слова", "слов")}${due ? ` · <b>${due}</b> ждут повторения` : " · на сегодня всё изучено"}</p>
             <button class="btn" type="button" data-train>${due ? "Повторить слова" : "Учить слова"}</button>
           </div>
+          ${aiBlock(all)}
           <div class="words-tools">
             <label class="search" for="words-search">
               <span class="search-ico">${ui.icons.search}</span>
@@ -116,11 +123,12 @@ export async function renderWords() {
           <p class="empty words-empty" data-empty hidden></p>
           <div class="more-line"><button type="button" class="btn quiet" data-more hidden>Показать ещё</button></div>
           <div class="words-clear" data-clear-box><button type="button" class="inline-link words-clear-link" data-clear>Удалить все слова</button></div>`
-        : `<p class="empty">Пока пусто. В уроке нажмите на любое английское слово, а в подсказке с переводом — значок закладки, и слово попадёт сюда.</p>`}
+        : `<p class="empty">Пока пусто. В уроке нажмите на любое английское слово, а в подсказке с переводом — значок закладки, и слово попадёт сюда. Или подберите слова по теме с ИИ.</p>${aiBlock(all)}`}
         <p class="back-line"><a class="back" href="#/">← Все уроки</a></p>
       </main>`;
     ui.bindTopbar();
     const main = ui.app.querySelector("main");
+    bindAi(main);
     if (!all.length) return;
     const list = main.querySelector("[data-list]"), empty = main.querySelector("[data-empty]"), more = main.querySelector("[data-more]");
 
@@ -266,6 +274,41 @@ export async function renderWords() {
     });
   };
 
+  // «Подобрать слова с ИИ»: a topic, then 20 new words; «Вернуть» in the toast takes them back.
+  const reload = async () => {
+    const data = await loadAllWords();
+    cache.set("words", data);
+    items = data.items || [];
+    if (ui.isScreen(token)) paint();
+  };
+  const bindAi = main => {
+    const box = main.querySelector("[data-ai]");
+    if (!box) return;
+    box.querySelectorAll("[data-topic]").forEach(b => b.addEventListener("click", () => {
+      wordsView.topic = b.dataset.topic;
+      box.querySelectorAll("[data-topic]").forEach(x => { x.classList.toggle("active", x === b); x.setAttribute("aria-checked", String(x === b)); });
+    }));
+    const go = box.querySelector("[data-ai-go]");
+    go?.addEventListener("click", async () => {
+      go.disabled = true; go.classList.add("loading"); go.textContent = "Подбираю слова…";
+      try {
+        const res = await api.generateWords(wordsView.topic);
+        await reload();
+        const n = res.added.length;
+        undoToast(`Добавлено ${n} ${ui.plural(n, "слово", "слова", "слов")}`, async () => {
+          try { await api.undoAiWords(res.added); await reload(); } catch (err) { ui.handleError(err); }
+        }, 8000); // twenty words at once: a little longer to change one's mind
+      } catch (err) {
+        if (err instanceof AuthRequired) { ui.handleError(err); return; }
+        ui.toast(err.code === "limit" ? "Вопросы к ИИ на сегодня закончились. Завтра можно будет подобрать ещё."
+          : err.code === "full" ? `В словаре уже ${AI_LIMIT} слов от ИИ. Удалите старые, чтобы подобрать новые.`
+          : "ИИ сейчас не ответил. Попробуйте ещё раз.");
+        if (ui.isScreen(token)) { go.disabled = false; go.classList.remove("loading"); go.textContent = "Добавить 20 слов"; }
+        if (err.code === "full") reload().catch(() => {});
+      }
+    });
+  };
+
   const saved = cache.get("words");
   if (saved) { items = saved.items || []; paint(); }
   else {
@@ -284,6 +327,21 @@ export async function renderWords() {
       if (q) ui.app.querySelector("[data-search]")?.focus({ preventScroll: true });
     }
   } catch (err) { if (!saved) ui.handleError(err); }
+}
+
+// A quiet block: which topic, how many AI words there are, one button. At the limit — one line instead.
+function aiBlock(all) {
+  const n = all.filter(w => w.from_ai).length;
+  const head = `<p class="hint-line">Слова от ИИ${n ? ` · <b>${n}</b> из ${AI_LIMIT}` : ""}</p>`;
+  if (n >= AI_LIMIT) {
+    return `<section class="ai-words" data-ai>${head}<p class="ai-words-note">В словаре ${AI_LIMIT} слов от ИИ. Удалите старые, чтобы подобрать новые.</p></section>`;
+  }
+  return `<section class="ai-words" data-ai>
+    ${head}
+    <div class="chips ai-topics" role="radiogroup" aria-label="Тема">${AI_TOPICS.map(([id, name]) =>
+      `<button type="button" class="chip${id === wordsView.topic ? " active" : ""}" role="radio" aria-checked="${id === wordsView.topic}" data-topic="${id}">${name}</button>`).join("")}</div>
+    <button type="button" class="btn ghost" data-ai-go>Добавить 20 слов</button>
+  </section>`;
 }
 
 function addedGroup(w) {

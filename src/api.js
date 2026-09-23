@@ -296,6 +296,24 @@ export const api = {
     check(error);
     cache.delete("words");
   },
+  // «Подобрать слова с ИИ»: 20 words of a topic straight into «Мои слова» (Edge Function `words`).
+  generateWords: async topic => {
+    const { data, error } = await sb.functions.invoke("words", { body: { topic } });
+    cache.delete("words");
+    if (!error) return data;
+    const status = error.context?.status;
+    let body = {};
+    try { body = await error.context.json(); } catch {}
+    if (status === 401) throw new AuthRequired("words");
+    const err = new Error(body.error || "unavailable");
+    err.code = body.error || (status === 429 ? "limit" : "unavailable");
+    throw err;
+  },
+  undoAiWords: async words => {
+    const { error } = await sb.rpc("undo_ai_words", { p_words: words });
+    check(error);
+    cache.delete("words");
+  },
   // «Спросить»: the students' AI helper (Edge Function `ask`). messages: [{ role: "user" | "assistant", text }].
   ask: async (messages, context) => {
     const { data, error } = await sb.functions.invoke("ask", { body: { messages, context } });
