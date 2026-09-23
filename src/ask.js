@@ -8,7 +8,6 @@ const SUGGEST = ["Что мне повторить сегодня?", "В как�
 const SUGGEST_TASK = ["Почему мой ответ неверный?", "Объясни правило проще", "Дай ещё пример"];
 const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
 const RETRY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>';
-const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.55L3.5 20.5l1.45-4.6A8.5 8.5 0 1 1 21 11.5z"/></svg>';
 const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const plural = (n, one, few, many) => {
   const t = Math.abs(n) % 100, d = t % 10;
@@ -48,8 +47,8 @@ const taskLine = c => `<small>${esc(c.task)}${c.answer ? ` · ваш ответ:
 
 let panel = null;
 
-export function openAsk({ context = null, history = null, followUp = "", onAuth } = {}) {
-  // «Продолжить в чате» always shows its conversation: a panel left open is replaced.
+export function openAsk({ context = null, history = null, focus = false, onAuth } = {}) {
+  // «Спросить ещё в чате» always shows its conversation: a panel left open is replaced.
   if (panel && history) panel.close();
   else if (panel) { if (context) panel.askAbout(context); return; }
   const messages = [];
@@ -218,84 +217,54 @@ export function openAsk({ context = null, history = null, followUp = "", onAuth 
 
   panel = { askAbout: c => { setContext(c); input.focus({ preventScroll: true }); }, close: () => close() };
   setContext(context);
-  // «Продолжить в чате»: the questions and answers from a task card continue here.
+  // «Спросить ещё в чате»: the questions and answers from a task card continue here.
   for (const m of history || []) {
     messages.push({ role: m.role, text: m.text });
     if (m.role === "user") add("ask-q", `${m.context ? taskLine(m.context) : ""}${esc(m.shown || m.text)}`);
     else add("ask-a", renderAnswer(m.text));
   }
   if (history?.length) scrollDown();
-  // A follow-up typed in the task card continues here as the next question.
-  if (followUp) ask(followUp);
+  // Opened to ask more: the cursor goes to the field right away, so a phone shows its keyboard within the same tap.
+  if (focus) input.focus({ preventScroll: true });
   else if (matchMedia("(min-width: 860px)").matches) setTimeout(() => input.focus(), 250);
 }
 
 // After a mistake the helper explains it right in the task card, without the panel.
-// The task, the answer and the site's hint go with the first question; «Продолжить в чате» carries it all to the panel.
-export function inlineAsk({ context, onAuth, auto = true }) {
+// The task, the answer and the site's hint go with the question. Under the explanation there is one way on —
+// «Спросить ещё в чате»: it opens the panel with this conversation, ready for the next question.
+export function inlineAsk({ context, onAuth }) {
   const history = [];
   let busy = false;
-  const box = document.createElement("div");
-  box.className = "ask-inline";
-  // The explanation comes first; under it — a field for a follow-up question.
-  box.innerHTML = `
-    <div class="ask-inline-out" aria-live="polite" hidden></div>
-    <form class="ask-inline-form">
-      <input class="inp ask-inline-input" type="text" maxlength="500" autocomplete="off" placeholder="${auto ? "Спросить ещё в чате" : "Что непонятно?"}" aria-label="Вопрос к ИИ об этом задании">
-      <button class="ask-send" type="submit" aria-label="Спросить у ИИ" disabled>${SEND_ICON}</button>
-    </form>
-    ${auto ? "" : `<button type="button" class="ask-chip ask-inline-chip">Почему мой ответ неверный?</button>`}`;
-  const form = box.querySelector("form"), input = box.querySelector("input"), send = box.querySelector(".ask-send");
-  const chip = box.querySelector(".ask-inline-chip"), out = box.querySelector(".ask-inline-out");
-  const sync = () => { send.disabled = busy || !input.value.trim(); };
-  input.addEventListener("input", sync);
+  const out = document.createElement("div");
+  out.className = "ask-inline ask-inline-out";
+  out.setAttribute("aria-live", "polite");
 
   const request = async () => {
-    busy = true; sync(); if (chip) chip.hidden = true;
-    out.hidden = false;
+    busy = true;
     out.innerHTML = `<div class="ask-a ask-wait" aria-label="Думаю"><span></span><span></span><span></span></div>`;
     try {
       const res = await api.ask(history.map(({ role, text }) => ({ role, text })), null);
       history.push({ role: "assistant", text: res.answer });
-      out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div><button type="button" class="ask-inline-more">${CHAT_ICON}<span>Продолжить в чате</span></button>`;
+      // Looks like a field, but the question is typed in the chat, where the whole conversation is.
+      out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div>
+        <button type="button" class="ask-inline-entry"><span>Спросить ещё в чате</span><i class="ask-send" aria-hidden="true">${SEND_ICON}</i></button>`;
       reveal(out.querySelector(".ask-a"));
-      out.querySelector(".ask-inline-more").addEventListener("click", () => openAsk({ history, onAuth }));
+      out.querySelector(".ask-inline-entry").addEventListener("click", () => openAsk({ history, onAuth, focus: true }));
     } catch (err) {
       if (err instanceof AuthRequired) { onAuth?.(err); return; }
       out.innerHTML = err.code === "limit"
         ? `<p class="ask-err">Вопросы на сегодня закончились. Завтра можно будет спросить снова.</p>`
-        : context.feedback && history.length === 1
+        : context.feedback
           // The helper could not explain the mistake: the site's own hint stands in, with a retry.
           ? `<p class="ask-inline-fallback">${esc(context.feedback)}</p><div class="ask-err"><p>ИИ сейчас не ответил.</p><button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button></div>`
           : `<div class="ask-err"><p>${navigator.onLine === false ? "Нет связи с интернетом." : "Помощник сейчас перегружен, вопрос не списался."}</p><button type="button" class="ask-retry">${RETRY_ICON}<span>Повторить</span></button></div>`;
       out.querySelector(".ask-retry")?.addEventListener("click", () => { if (!busy) request(); });
     } finally {
-      busy = false; sync();
+      busy = false;
     }
   };
-  const ask = (text, shown = text) => {
-    text = text.trim();
-    if (!text || busy) return;
-    // A question that did not go through is replaced by the new one.
-    if (history.at(-1)?.role === "user") history.pop();
-    // The first question carries the task; later ones continue the same conversation.
-    const first = !history.length;
-    history.push({ role: "user", text: first ? `${contextText(context)}\n\n${text}` : text, shown, context: first ? context : null });
-    input.value = "";
-    request();
-  };
-  // A follow-up goes to the chat with the whole conversation: the card keeps one explanation and does not jump.
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = ""; sync(); input.blur();
-    if (!history.length) { ask(text); return; } // nothing asked yet (the card was opened without the automatic question)
-    if (history.at(-1)?.role === "user") history.pop(); // the explanation did not come: the chat asks again
-    openAsk({ history, followUp: text, onAuth });
-  });
-  chip?.addEventListener("click", () => ask(chip.textContent));
   // Right after a wrong answer the helper explains the mistake without waiting to be asked.
-  if (auto) ask("Почему мой ответ неверный? Объясни коротко, в чём ошибка и какое правило здесь работает.", "Почему мой ответ неверный?");
-  return box;
+  history.push({ role: "user", text: `${contextText(context)}\n\nПочему мой ответ неверный? Объясни коротко, в чём ошибка и какое правило здесь работает.`, shown: "Почему мой ответ неверный?", context });
+  request();
+  return out;
 }
