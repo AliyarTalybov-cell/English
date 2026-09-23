@@ -218,9 +218,13 @@ button.chip{border:0}
 .ask-inline-chip[hidden],.ask-inline-out[hidden]{display:none}
 .ask-inline-out{display:grid;gap:8px}
 .ask-inline-out .ask-a{font-size:14px;line-height:1.5}
-.ask-inline-more{justify-self:start;font-size:14px}
+.ask-inline-more{justify-self:start;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 14px 6px 12px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:border-color var(--t2) ease,transform var(--t1) ease}
+.ask-inline-more svg{width:16px;height:16px}
+.ask-inline-more:hover{border-color:var(--accent)}
+.ask-inline-more:active{transform:scale(.97)}
 .ask-inline-fallback{font-size:14px;line-height:1.5}
-.mistake-card-head{color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.mistake-card-head{display:flex;align-items:center;gap:6px;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.mistake-card-head svg{flex:none;width:14px;height:14px;color:var(--accent)}
 .auth-shared{font-size:14px;color:var(--muted);line-height:1.5;text-align:center;margin:-6px 0 4px}
 
 /* login */
@@ -1261,7 +1265,9 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
   .ask-panel{max-width:420px;height:100%;max-height:none;border-radius:0;border-left:1px solid var(--line);box-shadow:-10px 0 40px rgba(0,0,0,.2);transform:translateX(100%)}
 }
 .ask-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 12px;border-bottom:1px solid var(--line)}
-.ask-head h2{margin:0;font-size:19px}
+.ask-head h2{display:flex;align-items:center;gap:10px;margin:0;font-size:18px}
+.ask-mark{flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
+.ask-mark svg{width:20px;height:20px}
 .ask-close{flex:none;width:36px;height:36px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:var(--chip);color:var(--ink);cursor:pointer}
 .ask-close svg{width:18px;height:18px}
 .ask-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:18px 16px}
@@ -1274,6 +1280,10 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 .ask-q{justify-self:end;max-width:85%;padding:10px 14px;border-radius:16px 16px 4px 16px;background:var(--chip);font-size:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
 .ask-q small{display:block;margin-bottom:4px;font-size:13px;line-height:1.4;color:var(--muted);white-space:normal}
 .ask-a{font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+.ask-log>.ask-a{position:relative;padding-left:28px}
+.ask-log>.ask-a::before{content:"";position:absolute;left:0;top:2px;width:18px;height:18px;background:var(--accent);-webkit-mask:var(--spark) center/contain no-repeat;mask:var(--spark) center/contain no-repeat}
+.ask-log>.ask-err::before{background:var(--muted)}
+.ask-panel{--spark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M11 3.5c.45 4.4 2.6 6.55 7 7-4.4.45-6.55 2.6-7 7-.45-4.4-2.6-6.55-7-7 4.4-.45 6.55-2.6 7-7z'/%3E%3Cpath d='M18.5 14.5c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3z' opacity='.6'/%3E%3C/svg%3E")}
 .ask-a p+p,.ask-a p+ul,.ask-a ul+p{margin-top:8px}
 .ask-a ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
 .ask-a li{position:relative;padding-left:16px}
@@ -1307,6 +1317,12 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 /* ---------- «Спросить ИИ»: the chat button in the corner of a lesson ---------- */
 .ask-fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:31;width:52px;height:52px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;transition:transform var(--t1) ease,border-color var(--t2) ease}
 .ask-fab svg{width:24px;height:24px}
+.ask-fab span{display:none}
+@media (min-width:860px){
+  .ask-fab{width:auto;grid-auto-flow:column;gap:8px;padding:0 20px 0 16px;border-radius:999px;font:inherit;font-size:15px;font-weight:500;color:var(--ink)}
+  .ask-fab svg{width:22px;height:22px;color:var(--accent)}
+  .ask-fab span{display:inline}
+}
 .ask-fab:hover{border-color:var(--accent)}
 .ask-fab:active{transform:scale(.94)}
 .to-top.with-fab{right:18px;bottom:calc(16px + 52px + 12px + env(safe-area-inset-bottom,0px))}

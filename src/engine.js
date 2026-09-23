@@ -11,7 +11,9 @@ const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").match
 
 /* ---------- listening ---------- */
 const SHARE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
-const ASK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 2-2.2 3.2"/><path d="M12 16.2h.01"/></svg>';
+// The AI helper's mark: a spark, used wherever the helper speaks or is called.
+export const SPARK_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 3.5c.45 4.4 2.6 6.55 7 7-4.4.45-6.55 2.6-7 7-.45-4.4-2.6-6.55-7-7 4.4-.45 6.55-2.6 7-7z"/><path d="M18.5 14.5c.2 1.9 1.1 2.8 3 3-1.9.2-2.8 1.1-3 3-.2-1.9-1.1-2.8-3-3 1.9-.2 2.8-1.1 3-3z" opacity=".6"/></svg>';
+const ASK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.55L3.5 20.5l1.45-4.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M12.25 7.25c.25 2.35 1.25 3.35 3.6 3.6-2.35.25-3.35 1.25-3.6 3.6-.25-2.35-1.25-3.35-3.6-3.6 2.35-.25 3.35-1.25 3.6-3.6z" fill="currentColor" stroke-width="1.2"/></svg>';
 const SPEAKER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave1" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave2" d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 
 // Small round button that speaks one English phrase.
@@ -1082,7 +1084,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
       li.classList.add("has-mistake-card");
       const why = document.createElement("aside");
       why.className = "mistake-card";
-      why.innerHTML = `<p class="mistake-card-head">ИИ-помощник</p>`;
+      why.innerHTML = `<p class="mistake-card-head">${SPARK_ICON}ИИ-помощник</p>`;
       why.appendChild(inline);
       li.appendChild(why);
     };
@@ -1211,7 +1213,7 @@ export function mountLesson(root, lesson, progress, save, opts = {}) {
     const fab = document.createElement("button");
     fab.type = "button"; fab.className = "ask-fab";
     fab.setAttribute("aria-label", "Спросить ИИ"); fab.title = "Спросить ИИ";
-    fab.innerHTML = ASK_ICON;
+    fab.innerHTML = `${ASK_ICON}<span>Спросить ИИ</span>`; // the label shows on a wide screen
     fab.addEventListener("click", () => opts.ask());
     document.body.appendChild(fab);
     toTop.classList.add("with-fab");

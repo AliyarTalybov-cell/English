@@ -2,12 +2,13 @@
 // on a wide screen it slides in from the right. The conversation lives only while the panel is open.
 // Opened from a mistake, it carries the task, the answer and the site's hint; the student asks their own question.
 import { api, AuthRequired } from "./api.js";
-import { esc } from "./engine.js";
+import { esc, SPARK_ICON } from "./engine.js";
 
 const SUGGEST = ["Что мне повторить сегодня?", "В каких темах я чаще ошибаюсь?", "Объясни проще последнюю тему"];
 const SUGGEST_TASK = ["Почему мой ответ неверный?", "Объясни правило проще", "Дай ещё пример"];
 const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
 const RETRY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>';
+const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.55L3.5 20.5l1.45-4.6A8.5 8.5 0 1 1 21 11.5z"/></svg>';
 const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const plural = (n, one, few, many) => {
   const t = Math.abs(n) % 100, d = t % 10;
@@ -53,7 +54,7 @@ export function openAsk({ context = null, history = null, followUp = "", onAuth 
   root.innerHTML = `
     <aside class="ask-panel" role="dialog" aria-modal="true" aria-labelledby="ask-title">
       <header class="ask-head">
-        <h2 id="ask-title">Спросить</h2>
+        <h2 id="ask-title"><span class="ask-mark">${SPARK_ICON}</span>ИИ-помощник</h2>
         <button type="button" class="ask-close" data-close aria-label="Закрыть">${X_ICON}</button>
       </header>
       <div class="ask-body">
@@ -249,7 +250,7 @@ export function inlineAsk({ context, onAuth, auto = true }) {
     try {
       const res = await api.ask(history.map(({ role, text }) => ({ role, text })), null);
       history.push({ role: "assistant", text: res.answer });
-      out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div><button type="button" class="text-link ask-inline-more">Продолжить в чате →</button>`;
+      out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div><button type="button" class="ask-inline-more">${CHAT_ICON}<span>Продолжить в чате</span></button>`;
       out.querySelector(".ask-inline-more").addEventListener("click", () => openAsk({ history, onAuth }));
     } catch (err) {
       if (err instanceof AuthRequired) { onAuth?.(err); return; }
