@@ -8,6 +8,7 @@ const SUGGEST = ["Что мне повторить сегодня?", "В как�
 const SUGGEST_TASK = ["Почему мой ответ неверный?", "Объясни правило проще", "Дай ещё пример"];
 const SEND_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
 const RETRY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>';
+const CHAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.55L3.5 20.5l1.45-4.6A8.5 8.5 0 1 1 21 11.5z"/></svg>';
 const X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const plural = (n, one, few, many) => {
   const t = Math.abs(n) % 100, d = t % 10;
@@ -48,7 +49,7 @@ const taskLine = c => `<small>${esc(c.task)}${c.answer ? ` · ваш ответ:
 let panel = null;
 
 export function openAsk({ context = null, history = null, focus = false, onAuth } = {}) {
-  // «Спросить ещё в чате» always shows its conversation: a panel left open is replaced.
+  // «Спросить в чате» always shows its conversation: a panel left open is replaced.
   if (panel && history) panel.close();
   else if (panel) { if (context) panel.askAbout(context); return; }
   const messages = [];
@@ -217,7 +218,7 @@ export function openAsk({ context = null, history = null, focus = false, onAuth 
 
   panel = { askAbout: c => { setContext(c); input.focus({ preventScroll: true }); }, close: () => close() };
   setContext(context);
-  // «Спросить ещё в чате»: the questions and answers from a task card continue here.
+  // «Спросить в чате»: the questions and answers from a task card continue here.
   for (const m of history || []) {
     messages.push({ role: m.role, text: m.text });
     if (m.role === "user") add("ask-q", `${m.context ? taskLine(m.context) : ""}${esc(m.shown || m.text)}`);
@@ -231,7 +232,7 @@ export function openAsk({ context = null, history = null, focus = false, onAuth 
 
 // After a mistake the helper explains it right in the task card, without the panel.
 // The task, the answer and the site's hint go with the question. Under the explanation there is one way on —
-// «Спросить ещё в чате»: it opens the panel with this conversation, ready for the next question.
+// «Спросить в чате»: it opens the panel with this conversation, ready for the next question.
 export function inlineAsk({ context, onAuth }) {
   const history = [];
   let busy = false;
@@ -245,11 +246,10 @@ export function inlineAsk({ context, onAuth }) {
     try {
       const res = await api.ask(history.map(({ role, text }) => ({ role, text })), null);
       history.push({ role: "assistant", text: res.answer });
-      // Looks like a field, but the question is typed in the chat, where the whole conversation is.
       out.innerHTML = `<div class="ask-a">${renderAnswer(res.answer)}</div>
-        <button type="button" class="ask-inline-entry"><span>Спросить ещё в чате</span><i class="ask-send" aria-hidden="true">${SEND_ICON}</i></button>`;
+        <button type="button" class="ask-inline-more">${CHAT_ICON}<span>Спросить в чате</span></button>`;
       reveal(out.querySelector(".ask-a"));
-      out.querySelector(".ask-inline-entry").addEventListener("click", () => openAsk({ history, onAuth, focus: true }));
+      out.querySelector(".ask-inline-more").addEventListener("click", () => openAsk({ history, onAuth, focus: true }));
     } catch (err) {
       if (err instanceof AuthRequired) { onAuth?.(err); return; }
       out.innerHTML = err.code === "limit"

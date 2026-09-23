@@ -211,13 +211,10 @@ button.chip{border:0}
 .mistake-card{min-width:0;grid-template-columns:minmax(0,1fr)}
 .ask-inline{display:grid;gap:10px;min-width:0}
 .ask-inline-out .ask-a{font-size:14px;line-height:1.5}
-/* «Спросить ещё в чате»: looks like a field, opens the chat — the one way on from the card */
-.ask-inline-entry{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:4px 4px 4px 16px;border:1px solid var(--line);border-radius:22px;background:var(--bg);color:var(--muted);font:inherit;font-size:15px;text-align:left;cursor:text;transition:border-color var(--t2) ease}
-.ask-inline-entry span{flex:1;min-width:0}
-.ask-inline-entry .ask-send{width:36px;height:36px}
-.ask-inline-entry .ask-send svg{width:17px;height:17px}
-.ask-inline-entry:hover{border-color:var(--accent)}
-.ask-inline-entry:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ask-inline-more{justify-self:start;display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:6px 14px 6px 12px;border:1px solid var(--line);border-radius:999px;background:none;color:var(--accent);font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:border-color var(--t2) ease,transform var(--t1) ease}
+.ask-inline-more svg{width:16px;height:16px}
+.ask-inline-more:hover{border-color:var(--accent)}
+.ask-inline-more:active{transform:scale(.97)}
 .ask-inline-fallback{font-size:14px;line-height:1.5}
 .mistake-card-head{display:flex;align-items:center;gap:6px;color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
 .mistake-card-head svg{flex:none;width:14px;height:14px;color:var(--accent)}
@@ -1314,12 +1311,12 @@ a.words-note:hover{color:var(--ink);border-bottom-color:var(--accent)}
 @keyframes askSparkIn{from{opacity:0;transform:scale(.4) rotate(-90deg)}}
 .ask-log>li{animation:askIn var(--t2) var(--ease-out) backwards}
 .ask-reveal>*{animation:askIn .32s var(--ease-out) backwards;animation-delay:calc(var(--i,0) * 70ms)}
-.ask-inline-out .ask-inline-entry{animation:askIn .32s var(--ease-out) .25s backwards}
+.ask-inline-out .ask-inline-more{animation:askIn .32s var(--ease-out) .25s backwards}
 .ask-log>.ask-wait::before,.ask-inline-out>.ask-wait::before{animation:askSpark 1.6s ease-in-out infinite}
 .ask-inline-out>.ask-wait{position:relative;padding-left:28px}
 .ask-inline-out>.ask-wait::before{content:"";position:absolute;left:0;top:50%;width:18px;height:18px;margin-top:-9px;background:var(--accent);-webkit-mask:var(--spark) center/contain no-repeat;mask:var(--spark) center/contain no-repeat}
 .ask-backdrop.open .ask-mark svg{animation:askSparkIn .6s var(--ease-out) .12s backwards}
-@media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}.ask-log>li,.ask-reveal>*,.ask-inline-out .ask-inline-entry,.ask-wait::before,.ask-mark svg{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.ask-panel,.ask-backdrop{transition:none}.ask-wait span{animation:none;opacity:.6}.ask-log>li,.ask-reveal>*,.ask-inline-out .ask-inline-more,.ask-wait::before,.ask-mark svg{animation:none!important}}
 
 /* ---------- «Спросить ИИ»: the chat button in the corner of a lesson ---------- */
 .ask-fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:31;width:52px;height:52px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;transition:transform var(--t1) ease,border-color var(--t2) ease}
